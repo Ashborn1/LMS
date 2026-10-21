@@ -20,25 +20,21 @@ const CATEGORIES = ["All", "IT", "Science", "English", "Social Studies"];
 const CATEGORY_PREFIX = { "IT":"IT", "Science":"SCI", "English":"ENG", "Social Studies":"SS" };
 
 const DEFAULT_BOOKS = [
-  // IT
   { id:"IT-1",  category:"IT",             title:"Cybersecurity Essentials",        copies:10 },
   { id:"IT-2",  category:"IT",             title:"Networking Fundamentals",         copies:8  },
   { id:"IT-3",  category:"IT",             title:"IT Fundamentals",                 copies:12 },
   { id:"IT-4",  category:"IT",             title:"Web Development",                 copies:7  },
   { id:"IT-5",  category:"IT",             title:"Human-Computer Interaction",      copies:5  },
-  // Science
   { id:"SCI-1", category:"Science",        title:"General Biology",                 copies:9  },
   { id:"SCI-2", category:"Science",        title:"Chemistry Basics",                copies:8  },
   { id:"SCI-3", category:"Science",        title:"Physics Principles",              copies:7  },
   { id:"SCI-4", category:"Science",        title:"Earth and Space Science",         copies:6  },
   { id:"SCI-5", category:"Science",        title:"Environmental Science",           copies:5  },
-  // English
   { id:"ENG-1", category:"English",        title:"English Grammar and Composition", copies:12 },
   { id:"ENG-2", category:"English",        title:"World Literature",                copies:8  },
   { id:"ENG-3", category:"English",        title:"Creative Writing",                copies:6  },
   { id:"ENG-4", category:"English",        title:"Reading Comprehension",           copies:10 },
   { id:"ENG-5", category:"English",        title:"Public Speaking",                 copies:5  },
-  // Social Studies
   { id:"SS-1",  category:"Social Studies", title:"Philippine History",              copies:10 },
   { id:"SS-2",  category:"Social Studies", title:"World History",                   copies:8  },
   { id:"SS-3",  category:"Social Studies", title:"Geography",                       copies:7  },
@@ -46,20 +42,16 @@ const DEFAULT_BOOKS = [
   { id:"SS-5",  category:"Social Studies", title:"Government and Civics",           copies:5  }
 ];
 
-const STORAGE_KEY  = "lms_v4";
+const STORAGE_KEY  = "lms_v5";
 const USERS_KEY    = "lms_users";
 const SESSION_KEY  = "lms_session";
 
-const DEFAULT_SETTINGS = {
-  loanDays: 14,
-  requireStudentId: true
-};
+const DEFAULT_SETTINGS = { loanDays: 14, requireStudentId: true };
 
 /* ============================================================
    2. HELPERS
    ============================================================ */
 const $ = id => document.getElementById(id);
-
 const bookById      = id => state.books.find(b => b.id === id);
 const borrowedCount = id => state.loans.filter(l => l.bookId === id).length;
 const slug          = s => s.toLowerCase().replace(/\s+/g, "-");
@@ -74,7 +66,6 @@ function highlight(text, query){
   const pattern = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return safe.replace(new RegExp(`(${pattern})`, "ig"), "<mark>$1</mark>");
 }
-
 function fmtDateTime(iso){
   if(!iso) return "—";
   return new Date(iso).toLocaleString(undefined, {
@@ -82,12 +73,7 @@ function fmtDateTime(iso){
     hour:"numeric", minute:"2-digit"
   });
 }
-
-function startOfDay(d){
-  const x = new Date(d);
-  x.setHours(0,0,0,0);
-  return x;
-}
+function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
 function daysUntil(iso){
   const due = startOfDay(iso).getTime();
   const now = startOfDay(new Date()).getTime();
@@ -97,15 +83,12 @@ function toLocalInput(d){
   const pad = n => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-
-const prefersReducedMotion =
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ============================================================
    3. TOASTS
    ============================================================ */
 const TOAST_ICONS = { success:"✓", error:"✕", info:"ℹ" };
-
 function toast(message, type = "success"){
   const el = document.createElement("div");
   el.className = `toast ${type}`;
@@ -115,7 +98,6 @@ function toast(message, type = "success"){
     <button class="toast-close" aria-label="Dismiss">✕</button>
   `;
   $("toasts").appendChild(el);
-
   const remove = () => {
     el.classList.add("out");
     el.addEventListener("animationend", () => el.remove(), { once:true });
@@ -133,43 +115,30 @@ function hashPassword(pwd){
   for(let i = 0; i < pwd.length; i++) h = ((h << 5) + h) ^ pwd.charCodeAt(i);
   return String(h >>> 0);
 }
-
-function getUsers(){
-  try{ return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); }
-  catch(e){ return []; }
-}
-function saveUsers(users){
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
+function getUsers(){ try{ return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); } catch(e){ return []; } }
+function saveUsers(users){ localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
 function seedDefaultUser(){
   const users = getUsers();
   if(users.length === 0){
     users.push({
-      username: "admin",
-      name: "Administrator",
+      username: "admin", name: "Administrator",
       passwordHash: hashPassword("admin123"),
       createdAt: new Date().toISOString()
     });
     saveUsers(users);
   }
 }
-
 function getSession(){
   const raw = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
   if(!raw) return null;
   try{
     const u = JSON.parse(raw);
     return (u && u.username) ? u : null;
-  }catch(e){
-    clearSession();
-    return null;
-  }
+  }catch(e){ clearSession(); return null; }
 }
 function setSession(user, remember){
   const payload = JSON.stringify({
-    username: user.username,
-    name: user.name,
-    loginAt: new Date().toISOString()
+    username: user.username, name: user.name, loginAt: new Date().toISOString()
   });
   if(remember) localStorage.setItem(SESSION_KEY, payload);
   else sessionStorage.setItem(SESSION_KEY, payload);
@@ -178,26 +147,17 @@ function clearSession(){
   localStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_KEY);
 }
-
-function showAuthError(el, msg){
-  el.textContent = msg;
-  el.classList.add("show");
-}
-function clearAuthError(el){
-  el.textContent = "";
-  el.classList.remove("show");
-}
+function showAuthError(el, msg){ el.textContent = msg; el.classList.add("show"); }
+function clearAuthError(el){ el.textContent = ""; el.classList.remove("show"); }
 
 function switchAuthTab(tab){
-  document.querySelectorAll(".auth-tab").forEach(b => {
-    b.classList.toggle("active", b.dataset.tab === tab);
-  });
+  document.querySelectorAll(".auth-tab").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === tab));
   $("loginForm").hidden    = tab !== "login";
   $("registerForm").hidden = tab !== "register";
   clearAuthError($("loginError"));
   clearAuthError($("registerError"));
 }
-
 function showAuth(){
   $("appScreen").hidden = true;
   $("authScreen").hidden = false;
@@ -207,26 +167,21 @@ function showAuth(){
   switchAuthTab("login");
   setTimeout(() => $("loginUser").focus(), 80);
 }
-
 function showApp(){
   const user = getSession();
   $("authScreen").hidden = true;
   $("appScreen").hidden = false;
-
   const display = (user && (user.name || user.username)) || "User";
   $("userName").textContent = display;
   $("userAvatar").textContent = display.trim().charAt(0).toUpperCase();
-
   renderAll();
 }
 
 function setupAuth(){
   seedDefaultUser();
-
   document.querySelectorAll(".auth-tab").forEach(btn => {
     btn.addEventListener("click", () => switchAuthTab(btn.dataset.tab));
   });
-
   document.querySelectorAll(".toggle-pass").forEach(btn => {
     btn.addEventListener("click", () => {
       const input = $(btn.dataset.target);
@@ -241,69 +196,50 @@ function setupAuth(){
   $("loginForm").addEventListener("submit", e => {
     e.preventDefault();
     clearAuthError($("loginError"));
-
-    const username = $("loginUser").value.trim();  // NO toLowerCase
+    const username = $("loginUser").value.trim();
     const password = $("loginPass").value;
     const remember = $("rememberMe").checked;
-
     if(!username || !password){
       showAuthError($("loginError"), "Please fill in both username and password.");
       return;
     }
-
-    const user = getUsers().find(u => u.username === username);  // exact match
+    const user = getUsers().find(u => u.username === username);
     if(!user || user.passwordHash !== hashPassword(password)){
       showAuthError($("loginError"), "Invalid username or password.");
       return;
     }
-
     clearSession();
     setSession(user, remember);
     toast(`Welcome back, ${user.name || user.username}!`, "success");
     showApp();
   });
 
-  // REGISTER — case-sensitive username uniqueness
+  // REGISTER — case-sensitive uniqueness
   $("registerForm").addEventListener("submit", e => {
     e.preventDefault();
     clearAuthError($("registerError"));
-
     const name     = $("regName").value.trim();
     const username = $("regUser").value.trim();
     const pass     = $("regPass").value;
     const confirm  = $("regPassConfirm").value;
-
     if(!name || !username || !pass){
-      showAuthError($("registerError"), "Please fill in all fields.");
-      return;
+      showAuthError($("registerError"), "Please fill in all fields."); return;
     }
     if(username.length < 3){
-      showAuthError($("registerError"), "Username must be at least 3 characters.");
-      return;
+      showAuthError($("registerError"), "Username must be at least 3 characters."); return;
     }
     if(pass.length < 6){
-      showAuthError($("registerError"), "Password must be at least 6 characters.");
-      return;
+      showAuthError($("registerError"), "Password must be at least 6 characters."); return;
     }
     if(pass !== confirm){
-      showAuthError($("registerError"), "Passwords do not match.");
-      return;
+      showAuthError($("registerError"), "Passwords do not match."); return;
     }
-
     const users = getUsers();
-    if(users.some(u => u.username === username)){  // exact match
-      showAuthError($("registerError"), "That username is already taken.");
-      return;
+    if(users.some(u => u.username === username)){
+      showAuthError($("registerError"), "That username is already taken."); return;
     }
-
-    users.push({
-      username,
-      name,
-      passwordHash: hashPassword(pass),
-      createdAt: new Date().toISOString()
-    });
+    users.push({ username, name, passwordHash: hashPassword(pass), createdAt: new Date().toISOString() });
     saveUsers(users);
-
     toast("Account created! You can now sign in.", "success");
     switchAuthTab("login");
     $("loginUser").value = username;
@@ -325,15 +261,14 @@ let state = loadState();
 
 function normalizeLoan(l){
   if(!l || typeof l !== "object" || !l.bookId || !l.date) return null;
-
   const borrower = (typeof l.borrower === "string")
     ? { name: l.borrower, type:"Student", studentId:"", section:"", gender:"", contact:"" }
-    : {
-        name:"", type:"Student", studentId:"", section:"", gender:"", contact:"",
-        ...l.borrower
-      };
-
+    : { name:"", type:"Student", studentId:"", section:"", gender:"", contact:"", ...l.borrower };
   if(!borrower.name) return null;
+
+  const extensions = Array.isArray(l.extensions)
+    ? l.extensions.filter(e => e && e.oldDue && e.newDue && e.reason)
+    : [];
 
   return {
     id: l.id || ("L" + Date.now() + "-" + Math.random().toString(36).slice(2,7)),
@@ -342,19 +277,19 @@ function normalizeLoan(l){
     date: l.date,
     dueDate: l.dueDate || new Date(new Date(l.date).getTime() + 14*86400000).toISOString(),
     notes: l.notes || "",
-    returnedAt: l.returnedAt || null
+    returnedAt: l.returnedAt || null,
+    extensions
   };
 }
-
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if(raw){
       const d = JSON.parse(raw);
       return {
-        books:   Array.isArray(d.books)
-                   ? d.books.filter(b => b && b.id && b.title && b.category && typeof b.copies === "number")
-                   : DEFAULT_BOOKS.map(b => ({ ...b })),
+        books: Array.isArray(d.books)
+          ? d.books.filter(b => b && b.id && b.title && b.category && typeof b.copies === "number")
+          : DEFAULT_BOOKS.map(b => ({ ...b })),
         loans:   Array.isArray(d.loans)   ? d.loans.map(normalizeLoan).filter(Boolean)   : [],
         history: Array.isArray(d.history) ? d.history.map(normalizeLoan).filter(Boolean) : [],
         theme: d.theme === "dark" ? "dark" : "light",
@@ -364,25 +299,18 @@ function loadState(){
   }catch(e){ console.warn("Could not load saved data:", e); }
   return {
     books: DEFAULT_BOOKS.map(b => ({ ...b })),
-    loans: [],
-    history: [],
-    theme: "light",
+    loans: [], history: [], theme:"light",
     settings: { ...DEFAULT_SETTINGS }
   };
 }
-
 function saveState(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   catch(e){ console.warn("Could not save data:", e); }
 }
 
 const ui = {
-  category: "all",
-  search: "",
-  sort: "title-asc",
-  availability: "all",
-  tab: "active",
-  view: "library"
+  category: "all", search: "", sort: "title-asc", availability: "all",
+  tab: "active", view: "library"
 };
 
 /* ============================================================
@@ -399,7 +327,6 @@ function applyTheme(){
    7. STATS
    ============================================================ */
 const statPrev = {};
-
 function initStats(){
   $("stats").innerHTML = `
     <div class="stat">
@@ -420,17 +347,11 @@ function initStats(){
     </div>
   `;
 }
-
 function setStat(key, el, value){
   const from = statPrev[key] ?? 0;
-  if(prefersReducedMotion || from === value){
-    statPrev[key] = value;
-    el.textContent = value;
-    return;
-  }
+  if(prefersReducedMotion || from === value){ statPrev[key] = value; el.textContent = value; return; }
   statPrev[key] = value;
-  const start = performance.now();
-  const duration = 500;
+  const start = performance.now(); const duration = 500;
   function step(t){
     const p = Math.min(1, (t - start) / duration);
     const eased = 1 - Math.pow(1 - p, 3);
@@ -439,12 +360,10 @@ function setStat(key, el, value){
   }
   requestAnimationFrame(step);
 }
-
 function updateStats(){
   const totalTitles = state.books.length;
   const totalCopies = state.books.reduce((s,b) => s + b.copies, 0);
   const borrowed    = state.loans.length;
-
   setStat("titles",    $("statTitles"),    totalTitles);
   setStat("copies",    $("statCopies"),    totalCopies);
   setStat("available", $("statAvailable"), totalCopies - borrowed);
@@ -476,7 +395,6 @@ function renderChips(){
    9. CATALOG
    ============================================================ */
 let firstRender = true;
-
 function getFilteredBooks(){
   const q = ui.search.trim().toLowerCase();
   const list = state.books.filter(b => {
@@ -487,7 +405,6 @@ function getFilteredBooks(){
     if(ui.availability === "out" && avail > 0) return false;
     return true;
   });
-
   const availOf = b => b.copies - borrowedCount(b.id);
   switch(ui.sort){
     case "title-asc":  list.sort((a,b) => a.title.localeCompare(b.title)); break;
@@ -498,7 +415,6 @@ function getFilteredBooks(){
   }
   return list;
 }
-
 function bookCard(b, index){
   const out   = borrowedCount(b.id);
   const avail = b.copies - out;
@@ -525,12 +441,10 @@ function bookCard(b, index){
     </article>
   `;
 }
-
 function renderCatalog(){
   const list = getFilteredBooks();
   const grid = $("catalog");
   grid.classList.toggle("animate", firstRender);
-
   if(!list.length){
     grid.innerHTML = `
       <div class="empty-state">
@@ -547,7 +461,6 @@ function renderCatalog(){
     firstRender = false;
     return;
   }
-
   grid.innerHTML = list.map(bookCard).join("");
   firstRender = false;
 }
@@ -562,11 +475,13 @@ function statusFor(iso){
   if(d <= 3)  return { text:`Due in ${d}d`, cls:"soon" };
   return { text:`${d}d left`, cls:"ok" };
 }
-
 function borrowerMeta(b){
   return [b.type, b.section, b.studentId].filter(Boolean).map(escapeHtml).join(" · ");
 }
-
+function extBadge(loan){
+  const n = (loan.extensions && loan.extensions.length) || 0;
+  return n ? `<span class="ext-badge" title="${n} extension${n>1?"s":""}">↻ ${n}</span>` : "";
+}
 function loanRow(l){
   const book = bookById(l.bookId) || { title:"(removed book)", category:"IT" };
   const s = statusFor(l.dueDate);
@@ -587,15 +502,15 @@ function loanRow(l){
       </td>
       <td>${fmtDateTime(l.date)}</td>
       <td>${fmtDateTime(l.dueDate)}</td>
-      <td><span class="status ${s.cls}">${s.text}</span></td>
+      <td><span class="status ${s.cls}">${s.text}</span>${extBadge(l)}</td>
       <td class="actions-cell">
         <button class="btn small ghost view" data-view="${l.id}">View</button>
+        <button class="btn small ghost extend" data-extend="${l.id}">Extend</button>
         <button class="btn small ghost return" data-loan="${l.id}">Return</button>
       </td>
     </tr>
   `;
 }
-
 function historyRow(l){
   const book = bookById(l.bookId) || { title:"(removed book)", category:"IT" };
   const meta = borrowerMeta(l.borrower);
@@ -615,11 +530,13 @@ function historyRow(l){
       </td>
       <td>${fmtDateTime(l.date)}</td>
       <td>${fmtDateTime(l.returnedAt)}</td>
-      <td><span class="status ok">Returned</span></td>
+      <td><span class="status ok">Returned</span>${extBadge(l)}</td>
+      <td class="actions-cell">
+        <button class="btn small ghost view" data-view="${l.id}">View</button>
+      </td>
     </tr>
   `;
 }
-
 function emptyState(icon, title, text){
   return `
     <div class="empty-state">
@@ -629,12 +546,10 @@ function emptyState(icon, title, text){
     </div>
   `;
 }
-
 function renderLoans(){
   const panel = $("loansPanel");
   $("activeCount").textContent  = state.loans.length;
   $("historyCount").textContent = state.history.length;
-
   document.querySelectorAll(".tab").forEach(t =>
     t.classList.toggle("active", t.dataset.tab === ui.tab));
 
@@ -673,7 +588,7 @@ function renderLoans(){
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Book</th><th>Borrower</th><th>Borrowed</th><th>Returned</th><th>Status</th></tr>
+            <tr><th>Book</th><th>Borrower</th><th>Borrowed</th><th>Returned</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
@@ -683,30 +598,25 @@ function renderLoans(){
 }
 
 /* ============================================================
-   11. ADMIN — INVENTORY MANAGEMENT
+   11. ADMIN — INVENTORY
    ============================================================ */
 function renderAdminBooks(){
   const tbody = $("adminBooksBody");
   if(!tbody) return;
-
   const q = ($("adminSearch").value || "").trim().toLowerCase();
   const list = state.books.filter(b =>
     !q || b.title.toLowerCase().includes(q) || b.category.toLowerCase().includes(q)
   );
-
   if(!list.length){
     tbody.innerHTML = `
       <tr>
         <td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">
-          ${state.books.length
-            ? "No books match your search."
-            : 'No books in inventory. Click "Add book" to get started.'}
+          ${state.books.length ? "No books match your search." : 'No books in inventory. Click "Add book" to get started.'}
         </td>
       </tr>
     `;
     return;
   }
-
   tbody.innerHTML = list.map(b => {
     const out   = borrowedCount(b.id);
     const avail = b.copies - out;
@@ -726,12 +636,9 @@ function renderAdminBooks(){
     `;
   }).join("");
 }
-
 let editingBookId = null;
-
 function openInventory(bookId = null){
   editingBookId = bookId;
-
   if(bookId){
     const book = bookById(bookId);
     if(!book) return;
@@ -747,80 +654,56 @@ function openInventory(bookId = null){
     $("invCategory").value = "IT";
     $("invCopies").value   = 1;
   }
-
   $("invError").style.display = "none";
   $("inventoryModal").classList.add("open");
   setTimeout(() => $("invTitle").focus(), 80);
 }
-
 function closeInventory(){
   $("inventoryModal").classList.remove("open");
   editingBookId = null;
 }
-
-function showInvError(msg){
-  $("invError").textContent = msg;
-  $("invError").style.display = "block";
-}
-
+function showInvError(msg){ $("invError").textContent = msg; $("invError").style.display = "block"; }
 function generateBookId(category){
   const prefix = CATEGORY_PREFIX[category] || "BK";
   let n = 1;
   while(state.books.some(b => b.id === `${prefix}-${n}`)) n++;
   return `${prefix}-${n}`;
 }
-
 function saveInventory(){
   const title    = $("invTitle").value.trim();
   const category = $("invCategory").value;
   const copies   = parseInt($("invCopies").value, 10);
-
   if(!title){ showInvError("Please enter a title."); return; }
   if(!copies || copies < 1){ showInvError("Copies must be at least 1."); return; }
-
   if(editingBookId){
     const book = bookById(editingBookId);
     if(!book){ closeInventory(); return; }
-
     const out = borrowedCount(book.id);
     if(copies < out){
       showInvError(`Cannot set copies below ${out} — that many are currently on loan.`);
       return;
     }
-
     book.title    = title;
     book.category = category;
     book.copies   = copies;
     toast(`Updated "${title}"`, "success");
   } else {
-    state.books.push({
-      id: generateBookId(category),
-      title,
-      category,
-      copies
-    });
+    state.books.push({ id: generateBookId(category), title, category, copies });
     toast(`Added "${title}"`, "success");
   }
-
   saveState();
   closeInventory();
   renderAll();
 }
-
 function deleteBook(bookId){
   const book = bookById(bookId);
   if(!book) return;
-
   const out = borrowedCount(bookId);
-  const warning = out > 0
-    ? ` This book has ${out} active loan(s) — those loans will show as "(removed book)".`
-    : "";
-
+  const warning = out > 0 ? ` This book has ${out} active loan(s) — those loans will show as "(removed book)".` : "";
   openConfirm({
     title: `Delete "${book.title}"?`,
     message: `This will remove the book from the catalog.${warning}`,
-    confirmText: "Delete book",
-    danger: true
+    confirmText: "Delete book", danger: true
   }, () => {
     state.books = state.books.filter(b => b.id !== bookId);
     saveState();
@@ -860,18 +743,15 @@ function getRecentBorrowers(){
   }
   return Array.from(seen.values());
 }
-
 function updateRequireIdLabel(){
   const isStudent = $("fType").value === "Student";
   $("reqStudentId").style.display =
     (isStudent && state.settings.requireStudentId) ? "" : "none";
 }
-
 function setPresetActive(days){
   document.querySelectorAll(".preset").forEach(p =>
     p.classList.toggle("active", Number(p.dataset.days) === days));
 }
-
 function applyPreset(days){
   const borrowedVal = $("fBorrowed").value || toLocalInput(new Date());
   const base = new Date(borrowedVal);
@@ -879,22 +759,18 @@ function applyPreset(days){
   $("fDue").value = toLocalInput(due);
   setPresetActive(days);
 }
-
 function openBorrow(bookId){
   const book = bookById(bookId);
   if(!book) return;
   const avail = book.copies - borrowedCount(bookId);
   if(avail <= 0) return;
-
   pendingBookId = bookId;
   $("borrowForm").reset();
-
   const now = new Date();
   const due = new Date(now.getTime() + state.settings.loanDays * 86400000);
   $("fBorrowed").value = toLocalInput(now);
   $("fDue").value      = toLocalInput(due);
   setPresetActive(state.settings.loanDays);
-
   $("modalBookInfo").innerHTML = `
     <div class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</div>
     <div>
@@ -902,7 +778,6 @@ function openBorrow(bookId){
       <div class="modal-book-meta">${book.category} · ${avail} of ${book.copies} copies available</div>
     </div>
   `;
-
   recentCache = getRecentBorrowers();
   if(recentCache.length){
     $("recentBorrowers").hidden = false;
@@ -914,53 +789,40 @@ function openBorrow(bookId){
   } else {
     $("recentBorrowers").hidden = true;
   }
-
   updateRequireIdLabel();
   $("modalError").style.display = "none";
   $("modal").classList.add("open");
   setTimeout(() => $("fName").focus(), 80);
 }
-
 function closeBorrow(){
   $("modal").classList.remove("open");
   pendingBookId = null;
 }
-
-function showModalError(msg){
-  $("modalError").textContent = msg;
-  $("modalError").style.display = "block";
-}
-
+function showModalError(msg){ $("modalError").textContent = msg; $("modalError").style.display = "block"; }
 function validateBorrowForm(){
   const name = $("fName").value.trim();
   if(!name) return "Please enter the borrower's full name.";
-
   const type = $("fType").value;
   const sid  = $("fStudentId").value.trim();
   if(type === "Student" && state.settings.requireStudentId && !sid){
     return "Student ID number is required for students.";
   }
-
   const borrowedVal = $("fBorrowed").value;
   const dueVal      = $("fDue").value;
   if(!borrowedVal) return "Please set the date & time borrowed.";
   if(!dueVal)      return "Please set the date & time to return.";
   if(new Date(dueVal) <= new Date(borrowedVal)) return "Return date must be after the borrowed date.";
-
   return null;
 }
-
 function confirmBorrow(){
   const err = validateBorrowForm();
   if(err){ showModalError(err); return; }
-
   const book = bookById(pendingBookId);
   if(!book){ closeBorrow(); return; }
   if(book.copies - borrowedCount(book.id) <= 0){
     showModalError("Sorry, no copies are left for this book.");
     return;
   }
-
   const loan = {
     id: "L" + Date.now() + "-" + Math.random().toString(36).slice(2,7),
     bookId: book.id,
@@ -975,9 +837,9 @@ function confirmBorrow(){
     date:    new Date($("fBorrowed").value).toISOString(),
     dueDate: new Date($("fDue").value).toISOString(),
     notes:   $("fNotes").value.trim(),
-    returnedAt: null
+    returnedAt: null,
+    extensions: []
   };
-
   state.loans.push(loan);
   saveState();
   closeBorrow();
@@ -986,18 +848,39 @@ function confirmBorrow(){
 }
 
 /* ============================================================
-   14. DETAILS MODAL
+   14. DETAILS MODAL (active + history)
    ============================================================ */
 let detailsLoanId = null;
 
-function openDetails(loanId){
-  const loan = state.loans.find(l => l.id === loanId);
-  if(!loan) return;
-  detailsLoanId = loanId;
+function findLoanAnywhere(id){
+  const active = state.loans.find(l => l.id === id);
+  if(active) return { loan: active, isActive: true };
+  const hist = state.history.find(l => l.id === id);
+  if(hist) return { loan: hist, isActive: false };
+  return null;
+}
 
+function renderDetailsBody(loan, isActive){
   const book = bookById(loan.bookId) || { title:"(removed book)", category:"IT" };
   const b = loan.borrower;
-  const s = statusFor(loan.dueDate);
+  const s = isActive ? statusFor(loan.dueDate) : { text:"Returned", cls:"ok" };
+  const extensions = loan.extensions || [];
+
+  const extensionsHtml = extensions.length
+    ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Extension history · ${extensions.length}</div>
+        ${extensions.map(e => `
+          <div class="extension-item">
+            <div class="extension-row"><span>From</span><span>${fmtDateTime(e.oldDue)}</span></div>
+            <div class="extension-row"><span>To</span><span>${fmtDateTime(e.newDue)}</span></div>
+            <div class="extension-row"><span>Reason</span><span>${escapeHtml(e.reason)}</span></div>
+            <div class="extension-row"><span>Recorded</span><span>${fmtDateTime(e.extendedAt)}${e.by ? ` · ${escapeHtml(e.by)}` : ""}</span></div>
+          </div>
+        `).join("")}
+      </div>
+    `
+    : "";
 
   $("detailsBody").innerHTML = `
     <div class="modal-book">
@@ -1016,30 +899,130 @@ function openDetails(loanId){
       <div class="detail-row"><span class="detail-label">Contact</span><span>${escapeHtml(b.contact || "—")}</span></div>
       <div class="detail-row"><span class="detail-label">Borrowed</span><span>${fmtDateTime(loan.date)}</span></div>
       <div class="detail-row"><span class="detail-label">Due</span><span>${fmtDateTime(loan.dueDate)}</span></div>
+      ${loan.returnedAt ? `<div class="detail-row"><span class="detail-label">Returned</span><span>${fmtDateTime(loan.returnedAt)}</span></div>` : ""}
       <div class="detail-row"><span class="detail-label">Status</span><span class="status ${s.cls}">${s.text}</span></div>
       ${loan.notes ? `<div class="detail-row"><span class="detail-label">Notes</span><span>${escapeHtml(loan.notes)}</span></div>` : ""}
     </div>
+    ${extensionsHtml}
   `;
 
-  $("detailsModal").classList.add("open");
+  $("detailsExtend").hidden = !isActive;
+  $("detailsReturn").hidden = !isActive;
 }
 
+function openDetails(loanId){
+  const result = findLoanAnywhere(loanId);
+  if(!result) return;
+  detailsLoanId = loanId;
+  $("detailsTitle").textContent = result.isActive ? "Active loan details" : "Returned loan details";
+  renderDetailsBody(result.loan, result.isActive);
+  $("detailsModal").classList.add("open");
+}
 function closeDetails(){
   $("detailsModal").classList.remove("open");
   detailsLoanId = null;
 }
 
 /* ============================================================
-   15. RETURN
+   15. EXTEND DUE DATE
+   ============================================================ */
+let extendingLoanId = null;
+let extendBaseDue = null;
+
+function openExtend(loanId){
+  const loan = state.loans.find(l => l.id === loanId);
+  if(!loan) return;
+  extendingLoanId = loanId;
+  extendBaseDue = new Date(loan.dueDate);
+
+  const book = bookById(loan.bookId) || { title:"(removed book)", category:"IT" };
+  $("extendBookInfo").innerHTML = `
+    <div class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</div>
+    <div>
+      <div class="modal-book-title">${escapeHtml(book.title)}</div>
+      <div class="modal-book-meta">${escapeHtml(loan.borrower.name)}</div>
+    </div>
+  `;
+  $("extendCurrentDue").textContent = fmtDateTime(loan.dueDate);
+
+  // Default new due = current due + 7 days (or now + 7 days if already overdue)
+  const base = extendBaseDue > new Date() ? extendBaseDue : new Date();
+  const newDue = new Date(base.getTime() + 7 * 86400000);
+  $("extendNewDue").value = toLocalInput(newDue);
+  $("extendReason").value = "";
+  $("extendError").style.display = "none";
+  document.querySelectorAll("#extendPresetRow .preset").forEach(p => p.classList.remove("active"));
+
+  $("extendModal").classList.add("open");
+  setTimeout(() => $("extendReason").focus(), 80);
+}
+
+function closeExtend(){
+  $("extendModal").classList.remove("open");
+  extendingLoanId = null;
+  extendBaseDue = null;
+}
+
+function applyExtendPreset(days){
+  const base = extendBaseDue && extendBaseDue > new Date() ? extendBaseDue : new Date();
+  const newDue = new Date(base.getTime() + days * 86400000);
+  $("extendNewDue").value = toLocalInput(newDue);
+  document.querySelectorAll("#extendPresetRow .preset").forEach(p =>
+    p.classList.toggle("active", Number(p.dataset.days) === days));
+}
+
+function showExtendError(msg){
+  $("extendError").textContent = msg;
+  $("extendError").style.display = "block";
+}
+
+function confirmExtend(){
+  const reason = $("extendReason").value.trim();
+  const newDueVal = $("extendNewDue").value;
+
+  if(!newDueVal){ showExtendError("Please set the new due date."); return; }
+  if(!reason){ showExtendError("Please provide a reason for extending the due date."); return; }
+
+  const loan = state.loans.find(l => l.id === extendingLoanId);
+  if(!loan){ closeExtend(); return; }
+
+  const newDue = new Date(newDueVal);
+  const oldDue = new Date(loan.dueDate);
+  if(newDue <= oldDue){
+    showExtendError("New due date must be later than the current due date.");
+    return;
+  }
+
+  const user = getSession();
+  if(!loan.extensions) loan.extensions = [];
+  loan.extensions.push({
+    oldDue:     loan.dueDate,
+    newDue:     newDue.toISOString(),
+    reason,
+    extendedAt: new Date().toISOString(),
+    by:         user ? user.username : ""
+  });
+  loan.dueDate = newDue.toISOString();
+
+  const loanId = loan.id;
+  saveState();
+  closeExtend();
+  closeDetails();
+  renderAll();
+  toast(`Due date extended — new due: ${fmtDateTime(loan.dueDate)}`, "success");
+  // Reopen details to show the new state
+  setTimeout(() => openDetails(loanId), 120);
+}
+
+/* ============================================================
+   16. RETURN
    ============================================================ */
 function returnLoan(loanId){
   const idx = state.loans.findIndex(l => l.id === loanId);
   if(idx === -1) return;
-
   const loan = state.loans[idx];
   state.loans.splice(idx, 1);
   state.history.push({ ...loan, returnedAt: new Date().toISOString() });
-
   saveState();
   renderAll();
   const book = bookById(loan.bookId);
@@ -1047,22 +1030,19 @@ function returnLoan(loanId){
 }
 
 /* ============================================================
-   16. SETTINGS
+   17. SETTINGS
    ============================================================ */
 function openSettings(){
   $("setLoanDays").value = state.settings.loanDays;
   $("setRequireId").checked = state.settings.requireStudentId;
   $("settingsModal").classList.add("open");
 }
-function closeSettings(){
-  $("settingsModal").classList.remove("open");
-}
+function closeSettings(){ $("settingsModal").classList.remove("open"); }
 
 /* ============================================================
-   17. CONFIRM MODAL
+   18. CONFIRM MODAL
    ============================================================ */
 let confirmAction = null;
-
 function openConfirm({ title, message, confirmText = "Confirm", danger = false }, cb){
   $("confirmTitle").textContent = title || "Confirm";
   $("confirmMessage").textContent = message || "";
@@ -1079,7 +1059,7 @@ function closeConfirm(){
 }
 
 /* ============================================================
-   18. RENDER ALL
+   19. RENDER ALL
    ============================================================ */
 function renderAll(){
   updateStats();
@@ -1090,7 +1070,7 @@ function renderAll(){
 }
 
 /* ============================================================
-   19. EVENT WIRING
+   20. EVENT WIRING
    ============================================================ */
 function setupAppEvents(){
   $("themeToggle").addEventListener("click", () => {
@@ -1098,16 +1078,13 @@ function setupAppEvents(){
     saveState();
     applyTheme();
   });
-
   $("settingsBtn").addEventListener("click", openSettings);
 
-  /* View tabs */
   $("viewTabs").addEventListener("click", e => {
     const tab = e.target.closest(".view-tab");
     if(tab) switchView(tab.dataset.view);
   });
 
-  /* Library — category chips */
   $("categoryChips").addEventListener("click", e => {
     const chip = e.target.closest(".chip");
     if(!chip) return;
@@ -1116,23 +1093,17 @@ function setupAppEvents(){
     renderCatalog();
   });
 
-  /* Library — catalog clicks */
   $("catalog").addEventListener("click", e => {
     const borrowBtn = e.target.closest("button.borrow");
     if(borrowBtn){ openBorrow(borrowBtn.dataset.id); return; }
     if(e.target.closest("#clearFilters")){
-      ui.category = "all";
-      ui.search = "";
-      ui.availability = "all";
-      $("search").value = "";
-      $("clearSearch").hidden = true;
+      ui.category = "all"; ui.search = ""; ui.availability = "all";
+      $("search").value = ""; $("clearSearch").hidden = true;
       $("availSelect").value = "all";
-      renderChips();
-      renderCatalog();
+      renderChips(); renderCatalog();
     }
   });
 
-  /* Library — search */
   const searchInput = $("search");
   searchInput.addEventListener("input", () => {
     ui.search = searchInput.value;
@@ -1140,13 +1111,9 @@ function setupAppEvents(){
     renderCatalog();
   });
   $("clearSearch").addEventListener("click", () => {
-    searchInput.value = "";
-    ui.search = "";
-    $("clearSearch").hidden = true;
-    searchInput.focus();
-    renderCatalog();
+    searchInput.value = ""; ui.search = ""; $("clearSearch").hidden = true;
+    searchInput.focus(); renderCatalog();
   });
-
   $("sortSelect").addEventListener("change", e => { ui.sort = e.target.value; renderCatalog(); });
   $("availSelect").addEventListener("change", e => { ui.availability = e.target.value; renderCatalog(); });
 
@@ -1154,20 +1121,21 @@ function setupAppEvents(){
     tab.addEventListener("click", () => { ui.tab = tab.dataset.tab; renderLoans(); });
   });
 
+  // Loans panel: view / extend / return
   $("loansPanel").addEventListener("click", e => {
     const v = e.target.closest("button.view");
     if(v){ openDetails(v.dataset.view); return; }
+    const ext = e.target.closest("button.extend");
+    if(ext){ openExtend(ext.dataset.extend); return; }
     const r = e.target.closest("button.return");
     if(r){ returnLoan(r.dataset.loan); }
   });
 
-  /* Borrow form */
+  // Borrow form
   $("borrowForm").addEventListener("submit", e => { e.preventDefault(); confirmBorrow(); });
   $("cancelBorrow").addEventListener("click", closeBorrow);
   $("closeBorrow").addEventListener("click", closeBorrow);
-
   $("fType").addEventListener("change", updateRequireIdLabel);
-
   $("fBorrowed").addEventListener("input", () => {
     if(!$("fBorrowed").value) return;
     const active = document.querySelector(".preset.active");
@@ -1177,12 +1145,10 @@ function setupAppEvents(){
     $("fDue").value = toLocalInput(due);
   });
   $("fDue").addEventListener("input", () => setPresetActive(null));
-
   $("presetRow").addEventListener("click", e => {
     const p = e.target.closest(".preset");
     if(p) applyPreset(Number(p.dataset.days));
   });
-
   $("recentList").addEventListener("click", e => {
     const btn = e.target.closest(".recent-chip");
     if(!btn) return;
@@ -1198,31 +1164,46 @@ function setupAppEvents(){
     $("fName").focus();
   });
 
-  /* Admin — inventory */
+  // Admin inventory
   $("addBookBtn").addEventListener("click", () => openInventory(null));
   $("adminSearch").addEventListener("input", renderAdminBooks);
-
   $("adminBooksBody").addEventListener("click", e => {
     const edit = e.target.closest("button.edit-book");
     if(edit){ openInventory(edit.dataset.id); return; }
     const del = e.target.closest("button.delete-book");
     if(del){ deleteBook(del.dataset.id); }
   });
-
   $("inventoryForm").addEventListener("submit", e => { e.preventDefault(); saveInventory(); });
   $("cancelInventory").addEventListener("click", closeInventory);
   $("closeInventory").addEventListener("click", closeInventory);
 
-  /* Details modal */
+  // Details modal actions
   $("closeDetails").addEventListener("click", closeDetails);
   $("detailsClose").addEventListener("click", closeDetails);
+  $("detailsExtend").addEventListener("click", () => {
+    const id = detailsLoanId;
+    closeDetails();
+    if(id) openExtend(id);
+  });
   $("detailsReturn").addEventListener("click", () => {
     const id = detailsLoanId;
     closeDetails();
     if(id) returnLoan(id);
   });
 
-  /* Settings */
+  // Extend modal
+  $("extendForm").addEventListener("submit", e => { e.preventDefault(); confirmExtend(); });
+  $("cancelExtend").addEventListener("click", closeExtend);
+  $("closeExtend").addEventListener("click", closeExtend);
+  $("extendPresetRow").addEventListener("click", e => {
+    const p = e.target.closest(".preset");
+    if(p) applyExtendPreset(Number(p.dataset.days));
+  });
+  $("extendNewDue").addEventListener("input", () => {
+    document.querySelectorAll("#extendPresetRow .preset").forEach(p => p.classList.remove("active"));
+  });
+
+  // Settings
   $("closeSettings").addEventListener("click", closeSettings);
   $("settingsClose").addEventListener("click", closeSettings);
   $("settingsSave").addEventListener("click", () => {
@@ -1234,7 +1215,7 @@ function setupAppEvents(){
     toast("Settings saved", "success");
   });
 
-  /* Confirm */
+  // Confirm
   $("confirmOk").addEventListener("click", () => {
     const cb = confirmAction;
     closeConfirm();
@@ -1242,60 +1223,52 @@ function setupAppEvents(){
   });
   $("confirmCancel").addEventListener("click", closeConfirm);
 
-  /* Click-outside to close */
-  ["modal","inventoryModal","detailsModal","settingsModal","confirmModal"].forEach(id => {
+  // Click-outside to close
+  ["modal","inventoryModal","detailsModal","extendModal","settingsModal","confirmModal"].forEach(id => {
     $(id).addEventListener("click", e => {
       if(e.target === $(id)) $(id).classList.remove("open");
     });
   });
 
-  /* Reset (loans + history only, keeps books) */
+  // Reset (loans + history only)
   $("resetBtn").addEventListener("click", () => {
     openConfirm({
       title: "Reset loans & history?",
       message: "This clears all active loans and history records. Your book inventory stays intact.",
-      confirmText: "Reset records",
-      danger: true
+      confirmText: "Reset records", danger: true
     }, () => {
-      state.loans = [];
-      state.history = [];
-      saveState();
-      renderAll();
+      state.loans = []; state.history = [];
+      saveState(); renderAll();
       toast("Loans and history cleared", "info");
     });
   });
 
-  /* Keyboard shortcuts */
+  // Keyboard shortcuts
   document.addEventListener("keydown", e => {
     const typing = ["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName);
     if(e.key === "/" && !typing && ui.view === "library"){
-      e.preventDefault();
-      $("search").focus();
+      e.preventDefault(); $("search").focus();
     }
     if(e.key === "Escape"){
-      ["modal","inventoryModal","detailsModal","settingsModal","confirmModal"].forEach(id =>
+      ["modal","inventoryModal","detailsModal","extendModal","settingsModal","confirmModal"].forEach(id =>
         $(id).classList.remove("open"));
     }
   });
 }
 
 /* ============================================================
-   20. INIT
+   21. INIT
    ============================================================ */
 function init(){
   applyTheme();
   initStats();
   renderAll();
-
   $("headerDate").textContent = new Date().toLocaleDateString(undefined, {
     weekday:"long", month:"long", day:"numeric", year:"numeric"
   });
-
   setupAppEvents();
   setupAuth();
-
   if(getSession()) showApp();
   else showAuth();
 }
-
 init();
