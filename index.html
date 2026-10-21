@@ -35,19 +35,16 @@
 
       <form id="loginForm" class="auth-form" autocomplete="off" novalidate>
         <label for="loginUser">Username</label>
-        <input type="text" id="loginUser" placeholder="Enter your username">
-
+        <input type="text" id="loginUser" placeholder="Case-sensitive">
         <label for="loginPass">Password</label>
         <div class="password-wrap">
           <input type="password" id="loginPass" placeholder="Enter your password">
           <button type="button" class="toggle-pass" data-target="loginPass" aria-label="Show password">👁</button>
         </div>
-
         <label class="check-row">
           <input type="checkbox" id="rememberMe" checked>
           <span>Remember me on this device</span>
         </label>
-
         <button type="submit" class="submit-btn">Sign in</button>
         <p class="auth-error" id="loginError"></p>
       </form>
@@ -55,22 +52,18 @@
       <form id="registerForm" class="auth-form" autocomplete="off" novalidate hidden>
         <label for="regName">Full name</label>
         <input type="text" id="regName" placeholder="Juan Dela Cruz">
-
         <label for="regUser">Username</label>
         <input type="text" id="regUser" placeholder="Case-sensitive, e.g. JuanDC">
-
         <label for="regPass">Password</label>
         <div class="password-wrap">
           <input type="password" id="regPass" placeholder="At least 6 characters">
           <button type="button" class="toggle-pass" data-target="regPass" aria-label="Show password">👁</button>
         </div>
-
         <label for="regPassConfirm">Confirm password</label>
         <div class="password-wrap">
           <input type="password" id="regPassConfirm" placeholder="Repeat password">
           <button type="button" class="toggle-pass" data-target="regPassConfirm" aria-label="Show password">👁</button>
         </div>
-
         <button type="submit" class="submit-btn">Create account</button>
         <p class="auth-error" id="registerError"></p>
       </form>
@@ -169,13 +162,8 @@
         <table>
           <thead>
             <tr>
-              <th>Title</th>
-              <th>Author</th>
-              <th>Category</th>
-              <th>Copies</th>
-              <th>On loan</th>
-              <th>Available</th>
-              <th></th>
+              <th>Title</th><th>Author</th><th>Category</th>
+              <th>Copies</th><th>On loan</th><th>Available</th><th></th>
             </tr>
           </thead>
           <tbody id="adminBooksBody"></tbody>
@@ -189,28 +177,20 @@
 <div class="modal" id="modal" role="dialog" aria-modal="true">
   <div class="modal-box wide">
     <div class="modal-head">
-      <div>
-        <h3 id="borrowTitle">Borrow book</h3>
-        <p class="modal-sub">Fill in the borrower and loan details</p>
-      </div>
+      <div><h3 id="borrowTitle">Borrow book</h3><p class="modal-sub">Fill in the borrower and loan details</p></div>
       <button class="icon-btn" id="closeBorrow" aria-label="Close">✕</button>
     </div>
-
     <div class="modal-book" id="modalBookInfo"></div>
-
     <div class="recent-borrowers" id="recentBorrowers" hidden>
       <span class="recent-label">Recent borrowers</span>
       <div class="recent-list" id="recentList"></div>
     </div>
-
     <form id="borrowForm" class="form-grid" autocomplete="off" novalidate>
       <div class="form-section">Borrower details</div>
-
       <div class="field">
         <label for="fName">Full name <span class="req">*</span></label>
         <input id="fName" type="text" placeholder="Juan Dela Cruz">
       </div>
-
       <div class="field">
         <label for="fType">Borrower type</label>
         <select id="fType">
@@ -220,17 +200,14 @@
           <option value="Guest">Guest</option>
         </select>
       </div>
-
       <div class="field">
         <label for="fStudentId">Student / ID number <span class="req" id="reqStudentId">*</span></label>
         <input id="fStudentId" type="text" placeholder="e.g. 2024-00123">
       </div>
-
       <div class="field">
         <label for="fSection">Section / Department</label>
         <input id="fSection" type="text" placeholder="e.g. BSIT 2-A">
       </div>
-
       <div class="field">
         <label for="fGender">Gender</label>
         <select id="fGender">
@@ -240,24 +217,19 @@
           <option value="Other">Other</option>
         </select>
       </div>
-
       <div class="field">
         <label for="fContact">Contact number / Email</label>
         <input id="fContact" type="text" placeholder="Optional">
       </div>
-
       <div class="form-section">Loan details</div>
-
       <div class="field">
         <label for="fBorrowed">Date &amp; time borrowed</label>
         <input id="fBorrowed" type="datetime-local">
       </div>
-
       <div class="field">
         <label for="fDue">Date &amp; time to return</label>
         <input id="fDue" type="datetime-local">
       </div>
-
       <div class="field full">
         <label>Quick loan period</label>
         <div class="preset-row" id="presetRow">
@@ -268,14 +240,11 @@
           <button type="button" class="preset" data-days="30">1 month</button>
         </div>
       </div>
-
       <div class="field full">
         <label for="fNotes">Notes</label>
         <textarea id="fNotes" rows="2" placeholder="Optional remarks…"></textarea>
       </div>
-
       <p class="error full" id="modalError"></p>
-
       <div class="modal-actions full">
         <button type="button" class="btn ghost" id="cancelBorrow">Cancel</button>
         <button type="submit" class="btn">Confirm borrow</button>
@@ -294,18 +263,15 @@
       </div>
       <button class="icon-btn" id="closeInventory" aria-label="Close">✕</button>
     </div>
-
     <form id="inventoryForm" class="form-grid" autocomplete="off" novalidate>
       <div class="field full">
         <label for="invTitle">Title <span class="req">*</span></label>
         <input id="invTitle" type="text" placeholder="e.g. Advanced Networking">
       </div>
-
       <div class="field full">
         <label for="invAuthor">Author</label>
         <input id="invAuthor" type="text" placeholder="e.g. Behrouz A. Forouzan">
       </div>
-
       <div class="field full">
         <label for="invCategory">Category <span class="req">*</span></label>
         <select id="invCategory">
@@ -315,14 +281,11 @@
           <option value="Social Studies">Social Studies</option>
         </select>
       </div>
-
       <div class="field full">
         <label for="invCopies">Number of copies <span class="req">*</span></label>
         <input id="invCopies" type="number" min="1" max="999" value="1">
       </div>
-
       <p class="error full" id="invError"></p>
-
       <div class="modal-actions full">
         <button type="button" class="btn ghost" id="cancelInventory">Cancel</button>
         <button type="submit" class="btn" id="saveInventory">Save book</button>
@@ -359,17 +322,13 @@
       </div>
       <button class="icon-btn" id="closeEditHistory" aria-label="Close">✕</button>
     </div>
-
     <div class="modal-book" id="editHistoryBookInfo"></div>
-
     <form id="editHistoryForm" class="form-grid" autocomplete="off" novalidate>
       <div class="form-section">Borrower details</div>
-
       <div class="field">
         <label for="ehName">Full name <span class="req">*</span></label>
         <input id="ehName" type="text">
       </div>
-
       <div class="field">
         <label for="ehType">Borrower type</label>
         <select id="ehType">
@@ -379,17 +338,14 @@
           <option value="Guest">Guest</option>
         </select>
       </div>
-
       <div class="field">
         <label for="ehStudentId">Student / ID number</label>
         <input id="ehStudentId" type="text">
       </div>
-
       <div class="field">
         <label for="ehSection">Section / Department</label>
         <input id="ehSection" type="text">
       </div>
-
       <div class="field">
         <label for="ehGender">Gender</label>
         <select id="ehGender">
@@ -399,41 +355,32 @@
           <option value="Other">Other</option>
         </select>
       </div>
-
       <div class="field">
         <label for="ehContact">Contact number / Email</label>
         <input id="ehContact" type="text">
       </div>
-
       <div class="form-section">Dates</div>
-
       <div class="field">
         <label for="ehBorrowed">Date &amp; time borrowed</label>
         <input id="ehBorrowed" type="datetime-local">
       </div>
-
       <div class="field">
         <label for="ehDue">Date &amp; time due</label>
         <input id="ehDue" type="datetime-local">
       </div>
-
       <div class="field full">
         <label for="ehReturned">Date &amp; time returned</label>
         <input id="ehReturned" type="datetime-local">
       </div>
-
       <div class="field full">
         <label for="ehNotes">Notes</label>
         <textarea id="ehNotes" rows="2" placeholder="Optional remarks…"></textarea>
       </div>
-
       <div class="field full">
         <label for="ehReason">Reason for edit <span class="req">*</span></label>
-        <textarea id="ehReason" rows="2" placeholder="e.g. Corrected borrower name, fixed return date, typo in student ID…"></textarea>
+        <textarea id="ehReason" rows="2" placeholder="e.g. Corrected borrower name, fixed return date…"></textarea>
       </div>
-
       <p class="error full" id="ehError"></p>
-
       <div class="modal-actions full">
         <button type="button" class="btn ghost" id="cancelEditHistory">Cancel</button>
         <button type="submit" class="btn" id="saveEditHistory">Save changes</button>
@@ -446,26 +393,19 @@
 <div class="modal" id="extendModal" role="dialog" aria-modal="true">
   <div class="modal-box">
     <div class="modal-head">
-      <div>
-        <h3>Extend due date</h3>
-        <p class="modal-sub">Push out the return date and record a reason</p>
-      </div>
+      <div><h3>Extend due date</h3><p class="modal-sub">Push out the return date and record a reason</p></div>
       <button class="icon-btn" id="closeExtend" aria-label="Close">✕</button>
     </div>
-
     <div class="modal-book" id="extendBookInfo"></div>
-
     <form id="extendForm" class="form-grid" autocomplete="off" novalidate>
       <div class="field full">
         <label>Current due date</label>
         <div class="due-display" id="extendCurrentDue"></div>
       </div>
-
       <div class="field full">
         <label for="extendNewDue">New due date &amp; time <span class="req">*</span></label>
         <input type="datetime-local" id="extendNewDue">
       </div>
-
       <div class="field full">
         <label>Quick extend (from current due)</label>
         <div class="preset-row" id="extendPresetRow">
@@ -476,14 +416,11 @@
           <button type="button" class="preset" data-days="30">+1 month</button>
         </div>
       </div>
-
       <div class="field full">
         <label for="extendReason">Reason for extension <span class="req">*</span></label>
-        <textarea id="extendReason" rows="3" placeholder="e.g. Still working on research, project deadline moved, personal circumstances…"></textarea>
+        <textarea id="extendReason" rows="3" placeholder="e.g. Still working on research…"></textarea>
       </div>
-
       <p class="error full" id="extendError"></p>
-
       <div class="modal-actions full">
         <button type="button" class="btn ghost" id="cancelExtend">Cancel</button>
         <button type="submit" class="btn" id="confirmExtend">Extend due date</button>
