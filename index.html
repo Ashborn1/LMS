@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Library Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="authScreen">
+  <aside class="auth-visual">
+    <div class="visual-brand">
+      <div class="visual-logo">📚</div>
+      <div>
+        <h1>Library Management</h1>
+        <p>Borrowing made simple</p>
+      </div>
+    </div>
+    <ul class="visual-points">
+      <li>📖 20 curated titles across 4 subjects</li>
+      <li>👥 Detailed borrower records</li>
+      <li>📅 Custom due dates &amp; quick presets</li>
+      <li>💾 Auto-saved in your browser</li>
+    </ul>
+    <div class="visual-foot">© Your Library · All rights reserved</div>
+  </aside>
+
+  <main class="auth-panel">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login" type="button">Sign in</button>
+        <button class="auth-tab" data-tab="register" type="button">Create account</button>
+      </div>
+
+      <form id="loginForm" class="auth-form" autocomplete="off" novalidate>
+        <label for="loginUser">Username</label>
+        <input type="text" id="loginUser" placeholder="Case-sensitive">
+
+        <label for="loginPass">Password</label>
+        <div class="password-wrap">
+          <input type="password" id="loginPass" placeholder="Enter your password">
+          <button type="button" class="toggle-pass" data-target="loginPass" aria-label="Show password">👁</button>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="rememberMe" checked>
+          <span>Remember me on this device</span>
+        </label>
+
+        <button type="submit" class="submit-btn">Sign in</button>
+        <p class="auth-error" id="loginError"></p>
+      </form>
+
+      <form id="registerForm" class="auth-form" autocomplete="off" novalidate hidden>
+        <label for="regName">Full name</label>
+        <input type="text" id="regName" placeholder="Juan Dela Cruz">
+
+        <label for="regUser">Username</label>
+        <input type="text" id="regUser" placeholder="Case-sensitive, e.g. JuanDC">
+
+        <label for="regPass">Password</label>
+        <div class="password-wrap">
+          <input type="password" id="regPass" placeholder="At least 6 characters">
+          <button type="button" class="toggle-pass" data-target="regPass" aria-label="Show password">👁</button>
+        </div>
+
+        <label for="regPassConfirm">Confirm password</label>
+        <div class="password-wrap">
+          <input type="password" id="regPassConfirm" placeholder="Repeat password">
+          <button type="button" class="toggle-pass" data-target="regPassConfirm" aria-label="Show password">👁</button>
+        </div>
+
+        <button type="submit" class="submit-btn">Create account</button>
+        <p class="auth-error" id="registerError"></p>
+      </form>
+
+      <p class="auth-hint"><strong>Demo account:</strong> admin / admin123</p>
+    </div>
+  </main>
+</div>
+
+<!-- APP SCREEN -->
+<div id="appScreen" hidden>
+
+  <header class="site-header">
+    <div class="brand">
+      <div class="brand-logo">📚</div>
+      <div>
+        <h1>Library Management</h1>
+        <p id="headerDate">IT · Science · English · Social Studies</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="user-menu">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div class="user-meta">
+          <span class="user-name" id="userName">Admin</span>
+          <span class="user-role">Signed in</span>
+        </div>
+      </div>
+      <button id="settingsBtn" class="icon-btn" aria-label="Settings" title="Settings">⚙️</button>
+      <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">🌙</button>
+      <button id="logoutBtn" class="icon-btn" aria-label="Log out" title="Log out">🚪</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- View switcher -->
+    <div class="view-tabs" id="viewTabs" role="tablist">
+      <button class="view-tab active" data-view="library" role="tab">📚 Library</button>
+      <button class="view-tab" data-view="admin" role="tab">🛠️ Admin</button>
+    </div>
+
+    <!-- LIBRARY VIEW -->
+    <div id="libraryView">
+      <section class="stats" id="stats" aria-label="Library statistics"></section>
+
+      <div class="chips" id="categoryChips" role="tablist" aria-label="Filter by category"></div>
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="search" id="search" placeholder="Search books or categories…  (press /)" autocomplete="off">
+          <button id="clearSearch" class="clear-btn" aria-label="Clear search" hidden>✕</button>
+        </div>
+
+        <select id="sortSelect" aria-label="Sort books">
+          <option value="title-asc">Title (A–Z)</option>
+          <option value="title-desc">Title (Z–A)</option>
+          <option value="avail-desc">Most available</option>
+          <option value="avail-asc">Least available</option>
+          <option value="category">Category</option>
+        </select>
+
+        <select id="availSelect" aria-label="Filter by availability">
+          <option value="all">All books</option>
+          <option value="available">Available only</option>
+          <option value="out">Fully borrowed</option>
+        </select>
+
+        <button id="resetBtn" class="btn ghost danger" title="Clear loans &amp; history">Reset</button>
+      </div>
+
+      <div class="grid" id="catalog"></div>
+
+      <section class="loans-section">
+        <div class="section-head">
+          <h2>Loans</h2>
+          <div class="tabs" role="tablist">
+            <button class="tab active" data-tab="active" role="tab">Active <span id="activeCount" class="tab-count">0</span></button>
+            <button class="tab" data-tab="history" role="tab">History <span id="historyCount" class="tab-count">0</span></button>
+          </div>
+        </div>
+        <div id="loansPanel"></div>
+      </section>
+
+      <p class="footnote">💾 Your data is saved automatically in this browser.</p>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <div id="adminView" hidden>
+      <div class="admin-head">
+        <div>
+          <h2>Inventory management</h2>
+          <p>Add, edit, or remove books from the catalog</p>
+        </div>
+        <div class="admin-actions">
+          <input type="search" id="adminSearch" class="admin-search" placeholder="🔍 Search inventory…" autocomplete="off">
+          <button class="btn" id="addBookBtn">+ Add book</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Copies</th>
+              <th>On loan</th>
+              <th>Available</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="adminBooksBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- BORROW MODAL -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <div>
+        <h3 id="borrowTitle">Borrow book</h3>
+        <p class="modal-sub">Fill in the borrower and loan details</p>
+      </div>
+      <button class="icon-btn" id="closeBorrow" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-book" id="modalBookInfo"></div>
+
+    <div class="recent-borrowers" id="recentBorrowers" hidden>
+      <span class="recent-label">Recent borrowers</span>
+      <div class="recent-list" id="recentList"></div>
+    </div>
+
+    <form id="borrowForm" class="form-grid" autocomplete="off" novalidate>
+      <div class="form-section">Borrower details</div>
+
+      <div class="field">
+        <label for="fName">Full name <span class="req">*</span></label>
+        <input id="fName" type="text" placeholder="Juan Dela Cruz">
+      </div>
+
+      <div class="field">
+        <label for="fType">Borrower type</label>
+        <select id="fType">
+          <option value="Student">Student</option>
+          <option value="Faculty">Faculty</option>
+          <option value="Staff">Staff</option>
+          <option value="Guest">Guest</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="fStudentId">Student / ID number <span class="req" id="reqStudentId">*</span></label>
+        <input id="fStudentId" type="text" placeholder="e.g. 2024-00123">
+      </div>
+
+      <div class="field">
+        <label for="fSection">Section / Department</label>
+        <input id="fSection" type="text" placeholder="e.g. BSIT 2-A">
+      </div>
+
+      <div class="field">
+        <label for="fGender">Gender</label>
+        <select id="fGender">
+          <option value="">Prefer not to say</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="fContact">Contact number / Email</label>
+        <input id="fContact" type="text" placeholder="Optional">
+      </div>
+
+      <div class="form-section">Loan details</div>
+
+      <div class="field">
+        <label for="fBorrowed">Date &amp; time borrowed</label>
+        <input id="fBorrowed" type="datetime-local">
+      </div>
+
+      <div class="field">
+        <label for="fDue">Date &amp; time to return</label>
+        <input id="fDue" type="datetime-local">
+      </div>
+
+      <div class="field full">
+        <label>Quick loan period</label>
+        <div class="preset-row" id="presetRow">
+          <button type="button" class="preset" data-days="1">1 day</button>
+          <button type="button" class="preset" data-days="3">3 days</button>
+          <button type="button" class="preset" data-days="7">1 week</button>
+          <button type="button" class="preset" data-days="14">2 weeks</button>
+          <button type="button" class="preset" data-days="30">1 month</button>
+        </div>
+      </div>
+
+      <div class="field full">
+        <label for="fNotes">Notes</label>
+        <textarea id="fNotes" rows="2" placeholder="Optional remarks…"></textarea>
+      </div>
+
+      <p class="error full" id="modalError"></p>
+
+      <div class="modal-actions full">
+        <button type="button" class="btn ghost" id="cancelBorrow">Cancel</button>
+        <button type="submit" class="btn">Confirm borrow</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- INVENTORY MODAL (add/edit book) -->
+<div class="modal" id="inventoryModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3 id="inventoryModalTitle">Add book</h3>
+        <p class="modal-sub" id="inventoryModalSub">Add a new title to the catalog</p>
+      </div>
+      <button class="icon-btn" id="closeInventory" aria-label="Close">✕</button>
+    </div>
+
+    <form id="inventoryForm" class="form-grid" autocomplete="off" novalidate>
+      <div class="field full">
+        <label for="invTitle">Title <span class="req">*</span></label>
+        <input id="invTitle" type="text" placeholder="e.g. Advanced Networking">
+      </div>
+
+      <div class="field full">
+        <label for="invCategory">Category <span class="req">*</span></label>
+        <select id="invCategory">
+          <option value="IT">IT</option>
+          <option value="Science">Science</option>
+          <option value="English">English</option>
+          <option value="Social Studies">Social Studies</option>
+        </select>
+      </div>
+
+      <div class="field full">
+        <label for="invCopies">Number of copies <span class="req">*</span></label>
+        <input id="invCopies" type="number" min="1" max="999" value="1">
+      </div>
+
+      <p class="error full" id="invError"></p>
+
+      <div class="modal-actions full">
+        <button type="button" class="btn ghost" id="cancelInventory">Cancel</button>
+        <button type="submit" class="btn" id="saveInventory">Save book</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DETAILS MODAL -->
+<div class="modal" id="detailsModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Loan details</h3>
+      <button class="icon-btn" id="closeDetails" aria-label="Close">✕</button>
+    </div>
+    <div id="detailsBody"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="detailsClose">Close</button>
+      <button class="btn danger" id="detailsReturn">Return book</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal" id="settingsModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Settings</h3>
+      <button class="icon-btn" id="closeSettings" aria-label="Close">✕</button>
+    </div>
+    <div class="field">
+      <label for="setLoanDays">Default loan period (days)</label>
+      <input id="setLoanDays" type="number" min="1" max="365">
+    </div>
+    <label class="check-row">
+      <input type="checkbox" id="setRequireId">
+      <span>Require Student / ID number for students</span>
+    </label>
+    <div class="modal-actions">
+      <button class="btn ghost" id="settingsClose">Close</button>
+      <button class="btn" id="settingsSave">Save settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal" id="confirmModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmMessage"></p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="confirmCancel">Cancel</button>
+      <button class="btn danger" id="confirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
