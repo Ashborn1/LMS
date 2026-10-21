@@ -19,9 +19,9 @@
     </div>
     <ul class="visual-points">
       <li>📖 20 curated titles across 4 subjects</li>
+      <li>✍️ Author details on every book</li>
       <li>👥 Detailed borrower records</li>
-      <li>📅 Custom due dates &amp; quick presets</li>
-      <li>💾 Auto-saved in your browser</li>
+      <li>📅 Custom due dates &amp; extensions</li>
     </ul>
     <div class="visual-foot">© Your Library · All rights reserved</div>
   </aside>
@@ -35,7 +35,7 @@
 
       <form id="loginForm" class="auth-form" autocomplete="off" novalidate>
         <label for="loginUser">Username</label>
-        <input type="text" id="loginUser" placeholder="Case-sensitive">
+        <input type="text" id="loginUser" placeholder="Enter your username">
 
         <label for="loginPass">Password</label>
         <div class="password-wrap">
@@ -114,13 +114,15 @@
       <div class="toolbar">
         <div class="search-wrap">
           <span class="search-icon">🔍</span>
-          <input type="search" id="search" placeholder="Search books or categories…  (press /)" autocomplete="off">
+          <input type="search" id="search" placeholder="Search title, author, or category…  (press /)" autocomplete="off">
           <button id="clearSearch" class="clear-btn" aria-label="Clear search" hidden>✕</button>
         </div>
 
         <select id="sortSelect" aria-label="Sort books">
           <option value="title-asc">Title (A–Z)</option>
           <option value="title-desc">Title (Z–A)</option>
+          <option value="author-asc">Author (A–Z)</option>
+          <option value="author-desc">Author (Z–A)</option>
           <option value="avail-desc">Most available</option>
           <option value="avail-asc">Least available</option>
           <option value="category">Category</option>
@@ -158,7 +160,7 @@
           <p>Add, edit, or remove books from the catalog</p>
         </div>
         <div class="admin-actions">
-          <input type="search" id="adminSearch" class="admin-search" placeholder="🔍 Search inventory…" autocomplete="off">
+          <input type="search" id="adminSearch" class="admin-search" placeholder="🔍 Search title, author, category…" autocomplete="off">
           <button class="btn" id="addBookBtn">+ Add book</button>
         </div>
       </div>
@@ -167,8 +169,13 @@
         <table>
           <thead>
             <tr>
-              <th>Title</th><th>Category</th><th>Copies</th>
-              <th>On loan</th><th>Available</th><th></th>
+              <th>Title</th>
+              <th>Author</th>
+              <th>Category</th>
+              <th>Copies</th>
+              <th>On loan</th>
+              <th>Available</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="adminBooksBody"></tbody>
@@ -295,6 +302,11 @@
       </div>
 
       <div class="field full">
+        <label for="invAuthor">Author</label>
+        <input id="invAuthor" type="text" placeholder="e.g. Behrouz A. Forouzan">
+      </div>
+
+      <div class="field full">
         <label for="invCategory">Category <span class="req">*</span></label>
         <select id="invCategory">
           <option value="IT">IT</option>
@@ -331,7 +343,102 @@
       <button class="btn ghost" id="detailsClose">Close</button>
       <button class="btn ghost" id="detailsExtend">📅 Extend due date</button>
       <button class="btn danger" id="detailsReturn">Return book</button>
+      <button class="btn ghost danger" id="detailsDeleteHistory">🗑 Delete record</button>
+      <button class="btn" id="detailsEditHistory">✏️ Edit record</button>
     </div>
+  </div>
+</div>
+
+<!-- EDIT HISTORY MODAL -->
+<div class="modal" id="editHistoryModal" role="dialog" aria-modal="true">
+  <div class="modal-box wide">
+    <div class="modal-head">
+      <div>
+        <h3>Edit loan record</h3>
+        <p class="modal-sub">Update the details of this returned loan</p>
+      </div>
+      <button class="icon-btn" id="closeEditHistory" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-book" id="editHistoryBookInfo"></div>
+
+    <form id="editHistoryForm" class="form-grid" autocomplete="off" novalidate>
+      <div class="form-section">Borrower details</div>
+
+      <div class="field">
+        <label for="ehName">Full name <span class="req">*</span></label>
+        <input id="ehName" type="text">
+      </div>
+
+      <div class="field">
+        <label for="ehType">Borrower type</label>
+        <select id="ehType">
+          <option value="Student">Student</option>
+          <option value="Faculty">Faculty</option>
+          <option value="Staff">Staff</option>
+          <option value="Guest">Guest</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="ehStudentId">Student / ID number</label>
+        <input id="ehStudentId" type="text">
+      </div>
+
+      <div class="field">
+        <label for="ehSection">Section / Department</label>
+        <input id="ehSection" type="text">
+      </div>
+
+      <div class="field">
+        <label for="ehGender">Gender</label>
+        <select id="ehGender">
+          <option value="">Prefer not to say</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="ehContact">Contact number / Email</label>
+        <input id="ehContact" type="text">
+      </div>
+
+      <div class="form-section">Dates</div>
+
+      <div class="field">
+        <label for="ehBorrowed">Date &amp; time borrowed</label>
+        <input id="ehBorrowed" type="datetime-local">
+      </div>
+
+      <div class="field">
+        <label for="ehDue">Date &amp; time due</label>
+        <input id="ehDue" type="datetime-local">
+      </div>
+
+      <div class="field full">
+        <label for="ehReturned">Date &amp; time returned</label>
+        <input id="ehReturned" type="datetime-local">
+      </div>
+
+      <div class="field full">
+        <label for="ehNotes">Notes</label>
+        <textarea id="ehNotes" rows="2" placeholder="Optional remarks…"></textarea>
+      </div>
+
+      <div class="field full">
+        <label for="ehReason">Reason for edit <span class="req">*</span></label>
+        <textarea id="ehReason" rows="2" placeholder="e.g. Corrected borrower name, fixed return date, typo in student ID…"></textarea>
+      </div>
+
+      <p class="error full" id="ehError"></p>
+
+      <div class="modal-actions full">
+        <button type="button" class="btn ghost" id="cancelEditHistory">Cancel</button>
+        <button type="submit" class="btn" id="saveEditHistory">Save changes</button>
+      </div>
+    </form>
   </div>
 </div>
 

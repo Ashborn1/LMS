@@ -20,29 +20,29 @@ const CATEGORIES = ["All", "IT", "Science", "English", "Social Studies"];
 const CATEGORY_PREFIX = { "IT":"IT", "Science":"SCI", "English":"ENG", "Social Studies":"SS" };
 
 const DEFAULT_BOOKS = [
-  { id:"IT-1",  category:"IT",             title:"Cybersecurity Essentials",        copies:10 },
-  { id:"IT-2",  category:"IT",             title:"Networking Fundamentals",         copies:8  },
-  { id:"IT-3",  category:"IT",             title:"IT Fundamentals",                 copies:12 },
-  { id:"IT-4",  category:"IT",             title:"Web Development",                 copies:7  },
-  { id:"IT-5",  category:"IT",             title:"Human-Computer Interaction",      copies:5  },
-  { id:"SCI-1", category:"Science",        title:"General Biology",                 copies:9  },
-  { id:"SCI-2", category:"Science",        title:"Chemistry Basics",                copies:8  },
-  { id:"SCI-3", category:"Science",        title:"Physics Principles",              copies:7  },
-  { id:"SCI-4", category:"Science",        title:"Earth and Space Science",         copies:6  },
-  { id:"SCI-5", category:"Science",        title:"Environmental Science",           copies:5  },
-  { id:"ENG-1", category:"English",        title:"English Grammar and Composition", copies:12 },
-  { id:"ENG-2", category:"English",        title:"World Literature",                copies:8  },
-  { id:"ENG-3", category:"English",        title:"Creative Writing",                copies:6  },
-  { id:"ENG-4", category:"English",        title:"Reading Comprehension",           copies:10 },
-  { id:"ENG-5", category:"English",        title:"Public Speaking",                 copies:5  },
-  { id:"SS-1",  category:"Social Studies", title:"Philippine History",              copies:10 },
-  { id:"SS-2",  category:"Social Studies", title:"World History",                   copies:8  },
-  { id:"SS-3",  category:"Social Studies", title:"Geography",                       copies:7  },
-  { id:"SS-4",  category:"Social Studies", title:"Economics",                       copies:6  },
-  { id:"SS-5",  category:"Social Studies", title:"Government and Civics",           copies:5  }
+  { id:"IT-1",  category:"IT",             title:"Cybersecurity Essentials",        author:"William Stallings",       copies:10 },
+  { id:"IT-2",  category:"IT",             title:"Networking Fundamentals",         author:"Behrouz A. Forouzan",     copies:8  },
+  { id:"IT-3",  category:"IT",             title:"IT Fundamentals",                 author:"Efraim Turban",           copies:12 },
+  { id:"IT-4",  category:"IT",             title:"Web Development",                 author:"Jon Duckett",             copies:7  },
+  { id:"IT-5",  category:"IT",             title:"Human-Computer Interaction",      author:"Alan Dix",                copies:5  },
+  { id:"SCI-1", category:"Science",        title:"General Biology",                 author:"Sylvia S. Mader",         copies:9  },
+  { id:"SCI-2", category:"Science",        title:"Chemistry Basics",                author:"Raymond Chang",           copies:8  },
+  { id:"SCI-3", category:"Science",        title:"Physics Principles",              author:"Douglas C. Giancoli",     copies:7  },
+  { id:"SCI-4", category:"Science",        title:"Earth and Space Science",         author:"Edward J. Tarbuck",       copies:6  },
+  { id:"SCI-5", category:"Science",        title:"Environmental Science",           author:"G. Tyler Miller",         copies:5  },
+  { id:"ENG-1", category:"English",        title:"English Grammar and Composition", author:"John E. Warriner",        copies:12 },
+  { id:"ENG-2", category:"English",        title:"World Literature",                author:"David Damrosch",          copies:8  },
+  { id:"ENG-3", category:"English",        title:"Creative Writing",                author:"Janet Burroway",          copies:6  },
+  { id:"ENG-4", category:"English",        title:"Reading Comprehension",           author:"Linda Hoyt",              copies:10 },
+  { id:"ENG-5", category:"English",        title:"Public Speaking",                 author:"Stephen E. Lucas",        copies:5  },
+  { id:"SS-1",  category:"Social Studies", title:"Philippine History",              author:"Renato Constantino",      copies:10 },
+  { id:"SS-2",  category:"Social Studies", title:"World History",                   author:"William J. Duiker",       copies:8  },
+  { id:"SS-3",  category:"Social Studies", title:"Geography",                       author:"James M. Rubenstein",     copies:7  },
+  { id:"SS-4",  category:"Social Studies", title:"Economics",                       author:"Paul A. Samuelson",       copies:6  },
+  { id:"SS-5",  category:"Social Studies", title:"Government and Civics",           author:"James Q. Wilson",         copies:5  }
 ];
 
-const STORAGE_KEY  = "lms_v5";
+const STORAGE_KEY  = "lms_v6";
 const USERS_KEY    = "lms_users";
 const SESSION_KEY  = "lms_session";
 
@@ -270,6 +270,10 @@ function normalizeLoan(l){
     ? l.extensions.filter(e => e && e.oldDue && e.newDue && e.reason)
     : [];
 
+  const edits = Array.isArray(l.edits)
+    ? l.edits.filter(e => e && e.editedAt && e.reason)
+    : [];
+
   return {
     id: l.id || ("L" + Date.now() + "-" + Math.random().toString(36).slice(2,7)),
     bookId: l.bookId,
@@ -278,7 +282,18 @@ function normalizeLoan(l){
     dueDate: l.dueDate || new Date(new Date(l.date).getTime() + 14*86400000).toISOString(),
     notes: l.notes || "",
     returnedAt: l.returnedAt || null,
-    extensions
+    extensions,
+    edits
+  };
+}
+function normalizeBook(b){
+  if(!b || !b.id || !b.title || !b.category || typeof b.copies !== "number") return null;
+  return {
+    id: b.id,
+    title: b.title,
+    author: typeof b.author === "string" ? b.author : "",
+    category: b.category,
+    copies: b.copies
   };
 }
 function loadState(){
@@ -288,7 +303,7 @@ function loadState(){
       const d = JSON.parse(raw);
       return {
         books: Array.isArray(d.books)
-          ? d.books.filter(b => b && b.id && b.title && b.category && typeof b.copies === "number")
+          ? d.books.map(normalizeBook).filter(Boolean)
           : DEFAULT_BOOKS.map(b => ({ ...b })),
         loans:   Array.isArray(d.loans)   ? d.loans.map(normalizeLoan).filter(Boolean)   : [],
         history: Array.isArray(d.history) ? d.history.map(normalizeLoan).filter(Boolean) : [],
@@ -399,7 +414,13 @@ function getFilteredBooks(){
   const q = ui.search.trim().toLowerCase();
   const list = state.books.filter(b => {
     if(ui.category !== "all" && b.category !== ui.category) return false;
-    if(q && !(b.title.toLowerCase().includes(q) || b.category.toLowerCase().includes(q))) return false;
+    if(q){
+      const matches =
+        b.title.toLowerCase().includes(q) ||
+        b.category.toLowerCase().includes(q) ||
+        (b.author && b.author.toLowerCase().includes(q));
+      if(!matches) return false;
+    }
     const avail = b.copies - borrowedCount(b.id);
     if(ui.availability === "available" && avail <= 0) return false;
     if(ui.availability === "out" && avail > 0) return false;
@@ -409,6 +430,8 @@ function getFilteredBooks(){
   switch(ui.sort){
     case "title-asc":  list.sort((a,b) => a.title.localeCompare(b.title)); break;
     case "title-desc": list.sort((a,b) => b.title.localeCompare(a.title)); break;
+    case "author-asc": list.sort((a,b) => (a.author||"").localeCompare(b.author||"") || a.title.localeCompare(b.title)); break;
+    case "author-desc":list.sort((a,b) => (b.author||"").localeCompare(a.author||"") || a.title.localeCompare(b.title)); break;
     case "avail-desc": list.sort((a,b) => availOf(b) - availOf(a)); break;
     case "avail-asc":  list.sort((a,b) => availOf(a) - availOf(b)); break;
     case "category":   list.sort((a,b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title)); break;
@@ -420,6 +443,9 @@ function bookCard(b, index){
   const avail = b.copies - out;
   const pct   = b.copies ? Math.round((avail / b.copies) * 100) : 0;
   const barClass = pct >= 50 ? "high" : pct >= 20 ? "mid" : "low";
+  const authorLine = b.author
+    ? `<p class="book-author">${highlight(b.author, ui.search)}</p>`
+    : `<p class="book-author" style="opacity:.5">by Unknown</p>`;
   return `
     <article class="book-card cat-${slug(b.category)}" style="--i:${index}">
       <div class="book-top">
@@ -427,6 +453,7 @@ function bookCard(b, index){
         <span class="cat-badge">${b.category}</span>
       </div>
       <h3 class="book-title">${highlight(b.title, ui.search)}</h3>
+      ${authorLine}
       <div class="book-meta">
         <span>${avail} of ${b.copies} available</span>
         <span class="dot">·</span>
@@ -480,20 +507,48 @@ function borrowerMeta(b){
 }
 function extBadge(loan){
   const n = (loan.extensions && loan.extensions.length) || 0;
-  return n ? `<span class="ext-badge" title="${n} extension${n>1?"s":""}">↻ ${n}</span>` : "";
+  if(!n) return "";
+  const latest = loan.extensions[loan.extensions.length - 1];
+  const tip = latest.reason
+    ? `Extended ${n}× — latest reason: ${latest.reason}`
+    : `Extended ${n}×`;
+  return `<span class="ext-badge" title="${escapeHtml(tip)}">↻ ${n}</span>`;
+}
+function notesBadge(loan){
+  if(!loan.notes) return "";
+  return `<span class="note-badge" title="Note: ${escapeHtml(loan.notes)}">📝</span>`;
+}
+function editsBadge(loan){
+  const n = (loan.edits && loan.edits.length) || 0;
+  if(!n) return "";
+  const latest = loan.edits[loan.edits.length - 1];
+  const tip = latest.reason
+    ? `Edited ${n}× — latest reason: ${latest.reason}`
+    : `Edited ${n}×`;
+  return `<span class="edit-badge" title="${escapeHtml(tip)}">✏️ ${n}</span>`;
+}
+function cellBook(book, loan){
+  const authorLine = book.author
+    ? `<span class="cell-book-author">${escapeHtml(book.author)}</span>`
+    : "";
+  return `
+    <div class="cell-book">
+      <div class="cell-book-top">
+        <span class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</span>
+        <span>${escapeHtml(book.title)}</span>
+        ${loan ? notesBadge(loan) : ""}
+      </div>
+      ${authorLine}
+    </div>
+  `;
 }
 function loanRow(l){
-  const book = bookById(l.bookId) || { title:"(removed book)", category:"IT" };
+  const book = bookById(l.bookId) || { title:"(removed book)", author:"", category:"IT" };
   const s = statusFor(l.dueDate);
   const meta = borrowerMeta(l.borrower);
   return `
     <tr class="${s.overdue ? "row-overdue" : ""}">
-      <td>
-        <div class="cell-book">
-          <span class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</span>
-          <span>${escapeHtml(book.title)}</span>
-        </div>
-      </td>
+      <td>${cellBook(book, l)}</td>
       <td>
         <div class="borrower-cell">
           <span class="borrower-name">${escapeHtml(l.borrower.name)}</span>
@@ -512,16 +567,11 @@ function loanRow(l){
   `;
 }
 function historyRow(l){
-  const book = bookById(l.bookId) || { title:"(removed book)", category:"IT" };
+  const book = bookById(l.bookId) || { title:"(removed book)", author:"", category:"IT" };
   const meta = borrowerMeta(l.borrower);
   return `
     <tr>
-      <td>
-        <div class="cell-book">
-          <span class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</span>
-          <span>${escapeHtml(book.title)}</span>
-        </div>
-      </td>
+      <td>${cellBook(book, l)}</td>
       <td>
         <div class="borrower-cell">
           <span class="borrower-name">${escapeHtml(l.borrower.name)}</span>
@@ -530,9 +580,11 @@ function historyRow(l){
       </td>
       <td>${fmtDateTime(l.date)}</td>
       <td>${fmtDateTime(l.returnedAt)}</td>
-      <td><span class="status ok">Returned</span>${extBadge(l)}</td>
+      <td><span class="status ok">Returned</span>${extBadge(l)}${editsBadge(l)}</td>
       <td class="actions-cell">
         <button class="btn small ghost view" data-view="${l.id}">View</button>
+        <button class="btn small ghost edit-history" data-edit-history="${l.id}">Edit</button>
+        <button class="btn small ghost danger delete-history" data-delete-history="${l.id}">Delete</button>
       </td>
     </tr>
   `;
@@ -605,12 +657,15 @@ function renderAdminBooks(){
   if(!tbody) return;
   const q = ($("adminSearch").value || "").trim().toLowerCase();
   const list = state.books.filter(b =>
-    !q || b.title.toLowerCase().includes(q) || b.category.toLowerCase().includes(q)
+    !q ||
+    b.title.toLowerCase().includes(q) ||
+    b.category.toLowerCase().includes(q) ||
+    (b.author && b.author.toLowerCase().includes(q))
   );
   if(!list.length){
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">
+        <td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">
           ${state.books.length ? "No books match your search." : 'No books in inventory. Click "Add book" to get started.'}
         </td>
       </tr>
@@ -621,9 +676,13 @@ function renderAdminBooks(){
     const out   = borrowedCount(b.id);
     const avail = b.copies - out;
     const color = CATEGORY_COLORS[b.category] || "#64748b";
+    const authorCell = b.author
+      ? escapeHtml(b.author)
+      : `<span style="color:var(--muted);font-style:italic">—</span>`;
     return `
       <tr>
         <td><strong>${escapeHtml(b.title)}</strong></td>
+        <td>${authorCell}</td>
         <td><span class="cat-badge" style="--cat:${color}">${escapeHtml(b.category)}</span></td>
         <td>${b.copies}</td>
         <td>${out}</td>
@@ -645,12 +704,14 @@ function openInventory(bookId = null){
     $("inventoryModalTitle").textContent = "Edit book";
     $("inventoryModalSub").textContent   = "Update this book's details";
     $("invTitle").value    = book.title;
+    $("invAuthor").value   = book.author || "";
     $("invCategory").value = book.category;
     $("invCopies").value   = book.copies;
   } else {
     $("inventoryModalTitle").textContent = "Add book";
     $("inventoryModalSub").textContent   = "Add a new title to the catalog";
     $("invTitle").value    = "";
+    $("invAuthor").value   = "";
     $("invCategory").value = "IT";
     $("invCopies").value   = 1;
   }
@@ -671,6 +732,7 @@ function generateBookId(category){
 }
 function saveInventory(){
   const title    = $("invTitle").value.trim();
+  const author   = $("invAuthor").value.trim();
   const category = $("invCategory").value;
   const copies   = parseInt($("invCopies").value, 10);
   if(!title){ showInvError("Please enter a title."); return; }
@@ -684,11 +746,12 @@ function saveInventory(){
       return;
     }
     book.title    = title;
+    book.author   = author;
     book.category = category;
     book.copies   = copies;
     toast(`Updated "${title}"`, "success");
   } else {
-    state.books.push({ id: generateBookId(category), title, category, copies });
+    state.books.push({ id: generateBookId(category), title, author, category, copies });
     toast(`Added "${title}"`, "success");
   }
   saveState();
@@ -771,11 +834,12 @@ function openBorrow(bookId){
   $("fBorrowed").value = toLocalInput(now);
   $("fDue").value      = toLocalInput(due);
   setPresetActive(state.settings.loanDays);
+  const authorLine = book.author ? ` · <em>${escapeHtml(book.author)}</em>` : "";
   $("modalBookInfo").innerHTML = `
     <div class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</div>
     <div>
       <div class="modal-book-title">${escapeHtml(book.title)}</div>
-      <div class="modal-book-meta">${book.category} · ${avail} of ${book.copies} copies available</div>
+      <div class="modal-book-meta">${book.category}${authorLine} · ${avail} of ${book.copies} copies available</div>
     </div>
   `;
   recentCache = getRecentBorrowers();
@@ -838,7 +902,8 @@ function confirmBorrow(){
     dueDate: new Date($("fDue").value).toISOString(),
     notes:   $("fNotes").value.trim(),
     returnedAt: null,
-    extensions: []
+    extensions: [],
+    edits: []
   };
   state.loans.push(loan);
   saveState();
@@ -861,36 +926,63 @@ function findLoanAnywhere(id){
 }
 
 function renderDetailsBody(loan, isActive){
-  const book = bookById(loan.bookId) || { title:"(removed book)", category:"IT" };
+  const book = bookById(loan.bookId) || { title:"(removed book)", author:"", category:"IT" };
   const b = loan.borrower;
   const s = isActive ? statusFor(loan.dueDate) : { text:"Returned", cls:"ok" };
   const extensions = loan.extensions || [];
+  const edits = loan.edits || [];
 
-  const extensionsHtml = extensions.length
-    ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Extension history · ${extensions.length}</div>
-        ${extensions.map(e => `
-          <div class="extension-item">
-            <div class="extension-row"><span>From</span><span>${fmtDateTime(e.oldDue)}</span></div>
-            <div class="extension-row"><span>To</span><span>${fmtDateTime(e.newDue)}</span></div>
-            <div class="extension-row"><span>Reason</span><span>${escapeHtml(e.reason)}</span></div>
-            <div class="extension-row"><span>Recorded</span><span>${fmtDateTime(e.extendedAt)}${e.by ? ` · ${escapeHtml(e.by)}` : ""}</span></div>
-          </div>
-        `).join("")}
+  const authorLine = book.author ? ` · <em>${escapeHtml(book.author)}</em>` : "";
+
+  const notesHtml = loan.notes ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Notes</div>
+      <div class="notes-display">${escapeHtml(loan.notes)}</div>
+    </div>
+  ` : "";
+
+  const extensionsHtml = extensions.length ? `
+    <div class="detail-section">
+      <div class="detail-section-head">
+        <div class="detail-section-title">📅 Extension history</div>
+        <span class="ext-count-pill">${extensions.length}×</span>
       </div>
-    `
-    : "";
+      ${extensions.map(e => `
+        <div class="extension-item">
+          <div class="extension-row"><span>From</span><span>${fmtDateTime(e.oldDue)}</span></div>
+          <div class="extension-row"><span>To</span><span>${fmtDateTime(e.newDue)}</span></div>
+          <div class="extension-row"><span>Reason</span><span><strong>${escapeHtml(e.reason)}</strong></span></div>
+          <div class="extension-row"><span>Recorded</span><span>${fmtDateTime(e.extendedAt)}${e.by ? ` · ${escapeHtml(e.by)}` : ""}</span></div>
+        </div>
+      `).join("")}
+    </div>
+  ` : "";
+
+  const editsHtml = edits.length ? `
+    <div class="detail-section">
+      <div class="detail-section-head">
+        <div class="detail-section-title">✏️ Edit history</div>
+        <span class="edit-count-pill">${edits.length}×</span>
+      </div>
+      ${edits.map(e => `
+        <div class="edit-item">
+          <div class="edit-row"><span>Reason</span><span><strong>${escapeHtml(e.reason)}</strong></span></div>
+          <div class="edit-row"><span>Edited</span><span>${fmtDateTime(e.editedAt)}${e.by ? ` · ${escapeHtml(e.by)}` : ""}</span></div>
+        </div>
+      `).join("")}
+    </div>
+  ` : "";
 
   $("detailsBody").innerHTML = `
     <div class="modal-book">
       <div class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</div>
       <div>
         <div class="modal-book-title">${escapeHtml(book.title)}</div>
-        <div class="modal-book-meta">${book.category}</div>
+        <div class="modal-book-meta">${book.category}${authorLine}</div>
       </div>
     </div>
     <div class="detail-list">
+      <div class="detail-row"><span class="detail-label">Author</span><span>${escapeHtml(book.author || "—")}</span></div>
       <div class="detail-row"><span class="detail-label">Borrower</span><span>${escapeHtml(b.name)}</span></div>
       <div class="detail-row"><span class="detail-label">Type</span><span>${escapeHtml(b.type || "—")}</span></div>
       <div class="detail-row"><span class="detail-label">Student / ID No.</span><span>${escapeHtml(b.studentId || "—")}</span></div>
@@ -901,13 +993,16 @@ function renderDetailsBody(loan, isActive){
       <div class="detail-row"><span class="detail-label">Due</span><span>${fmtDateTime(loan.dueDate)}</span></div>
       ${loan.returnedAt ? `<div class="detail-row"><span class="detail-label">Returned</span><span>${fmtDateTime(loan.returnedAt)}</span></div>` : ""}
       <div class="detail-row"><span class="detail-label">Status</span><span class="status ${s.cls}">${s.text}</span></div>
-      ${loan.notes ? `<div class="detail-row"><span class="detail-label">Notes</span><span>${escapeHtml(loan.notes)}</span></div>` : ""}
     </div>
+    ${notesHtml}
     ${extensionsHtml}
+    ${editsHtml}
   `;
 
   $("detailsExtend").hidden = !isActive;
   $("detailsReturn").hidden = !isActive;
+  $("detailsEditHistory").hidden = isActive;
+  $("detailsDeleteHistory").hidden = isActive;
 }
 
 function openDetails(loanId){
@@ -924,7 +1019,123 @@ function closeDetails(){
 }
 
 /* ============================================================
-   15. EXTEND DUE DATE
+   15. EDIT HISTORY RECORD
+   ============================================================ */
+let editingHistoryLoanId = null;
+
+function openEditHistory(loanId){
+  const loan = state.history.find(l => l.id === loanId);
+  if(!loan) return;
+  editingHistoryLoanId = loanId;
+
+  const book = bookById(loan.bookId) || { title:"(removed book)", author:"", category:"IT" };
+  const authorLine = book.author ? ` · ${escapeHtml(book.author)}` : "";
+  $("editHistoryBookInfo").innerHTML = `
+    <div class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</div>
+    <div>
+      <div class="modal-book-title">${escapeHtml(book.title)}</div>
+      <div class="modal-book-meta">${book.category}${authorLine}</div>
+    </div>
+  `;
+
+  $("ehName").value      = loan.borrower.name || "";
+  $("ehType").value      = loan.borrower.type || "Student";
+  $("ehStudentId").value = loan.borrower.studentId || "";
+  $("ehSection").value   = loan.borrower.section || "";
+  $("ehGender").value    = loan.borrower.gender || "";
+  $("ehContact").value   = loan.borrower.contact || "";
+
+  $("ehBorrowed").value = toLocalInput(new Date(loan.date));
+  $("ehDue").value      = toLocalInput(new Date(loan.dueDate));
+  $("ehReturned").value = loan.returnedAt ? toLocalInput(new Date(loan.returnedAt)) : toLocalInput(new Date());
+
+  $("ehNotes").value  = loan.notes || "";
+  $("ehReason").value = "";
+  $("ehError").style.display = "none";
+
+  $("editHistoryModal").classList.add("open");
+  setTimeout(() => $("ehName").focus(), 80);
+}
+function closeEditHistory(){
+  $("editHistoryModal").classList.remove("open");
+  editingHistoryLoanId = null;
+}
+function showEhError(msg){
+  $("ehError").textContent = msg;
+  $("ehError").style.display = "block";
+}
+function saveEditHistory(){
+  const reason = $("ehReason").value.trim();
+  if(!reason){ showEhError("Please provide a reason for editing this record."); return; }
+
+  const loan = state.history.find(l => l.id === editingHistoryLoanId);
+  if(!loan){ closeEditHistory(); return; }
+
+  const name = $("ehName").value.trim();
+  if(!name){ showEhError("Borrower name is required."); return; }
+
+  const borrowedVal = $("ehBorrowed").value;
+  const dueVal      = $("ehDue").value;
+  const returnedVal = $("ehReturned").value;
+  if(!borrowedVal || !dueVal || !returnedVal){
+    showEhError("Please fill in all date fields."); return;
+  }
+  if(new Date(dueVal) <= new Date(borrowedVal)){
+    showEhError("Due date must be after the borrowed date."); return;
+  }
+  if(new Date(returnedVal) < new Date(borrowedVal)){
+    showEhError("Returned date cannot be before the borrowed date."); return;
+  }
+
+  loan.borrower.name      = name;
+  loan.borrower.type      = $("ehType").value;
+  loan.borrower.studentId = $("ehStudentId").value.trim();
+  loan.borrower.section   = $("ehSection").value.trim();
+  loan.borrower.gender    = $("ehGender").value;
+  loan.borrower.contact   = $("ehContact").value.trim();
+  loan.date        = new Date(borrowedVal).toISOString();
+  loan.dueDate     = new Date(dueVal).toISOString();
+  loan.returnedAt  = new Date(returnedVal).toISOString();
+  loan.notes       = $("ehNotes").value.trim();
+
+  if(!loan.edits) loan.edits = [];
+  const user = getSession();
+  loan.edits.push({
+    editedAt: new Date().toISOString(),
+    by: user ? user.username : "",
+    reason
+  });
+
+  saveState();
+  closeEditHistory();
+  closeDetails();
+  renderAll();
+  toast("Loan record updated", "success");
+}
+
+/* ============================================================
+   16. DELETE HISTORY RECORD
+   ============================================================ */
+function deleteHistoryLoan(loanId){
+  const loan = state.history.find(l => l.id === loanId);
+  if(!loan) return;
+  const book = bookById(loan.bookId);
+  openConfirm({
+    title: "Delete this history record?",
+    message: `This will permanently remove "${book ? book.title : "the loan"}" borrowed by ${loan.borrower.name} from the history log. This cannot be undone.`,
+    confirmText: "Delete record",
+    danger: true
+  }, () => {
+    state.history = state.history.filter(l => l.id !== loanId);
+    saveState();
+    closeDetails();
+    renderAll();
+    toast("History record deleted", "success");
+  });
+}
+
+/* ============================================================
+   17. EXTEND DUE DATE
    ============================================================ */
 let extendingLoanId = null;
 let extendBaseDue = null;
@@ -935,17 +1146,17 @@ function openExtend(loanId){
   extendingLoanId = loanId;
   extendBaseDue = new Date(loan.dueDate);
 
-  const book = bookById(loan.bookId) || { title:"(removed book)", category:"IT" };
+  const book = bookById(loan.bookId) || { title:"(removed book)", author:"", category:"IT" };
+  const authorLine = book.author ? ` · ${escapeHtml(book.author)}` : "";
   $("extendBookInfo").innerHTML = `
     <div class="mini-icon cat-${slug(book.category)}">${CATEGORY_ICONS[book.category] || "📗"}</div>
     <div>
       <div class="modal-book-title">${escapeHtml(book.title)}</div>
-      <div class="modal-book-meta">${escapeHtml(loan.borrower.name)}</div>
+      <div class="modal-book-meta">${escapeHtml(loan.borrower.name)}${authorLine}</div>
     </div>
   `;
   $("extendCurrentDue").textContent = fmtDateTime(loan.dueDate);
 
-  // Default new due = current due + 7 days (or now + 7 days if already overdue)
   const base = extendBaseDue > new Date() ? extendBaseDue : new Date();
   const newDue = new Date(base.getTime() + 7 * 86400000);
   $("extendNewDue").value = toLocalInput(newDue);
@@ -956,13 +1167,11 @@ function openExtend(loanId){
   $("extendModal").classList.add("open");
   setTimeout(() => $("extendReason").focus(), 80);
 }
-
 function closeExtend(){
   $("extendModal").classList.remove("open");
   extendingLoanId = null;
   extendBaseDue = null;
 }
-
 function applyExtendPreset(days){
   const base = extendBaseDue && extendBaseDue > new Date() ? extendBaseDue : new Date();
   const newDue = new Date(base.getTime() + days * 86400000);
@@ -970,12 +1179,10 @@ function applyExtendPreset(days){
   document.querySelectorAll("#extendPresetRow .preset").forEach(p =>
     p.classList.toggle("active", Number(p.dataset.days) === days));
 }
-
 function showExtendError(msg){
   $("extendError").textContent = msg;
   $("extendError").style.display = "block";
 }
-
 function confirmExtend(){
   const reason = $("extendReason").value.trim();
   const newDueVal = $("extendNewDue").value;
@@ -1010,12 +1217,11 @@ function confirmExtend(){
   closeDetails();
   renderAll();
   toast(`Due date extended — new due: ${fmtDateTime(loan.dueDate)}`, "success");
-  // Reopen details to show the new state
   setTimeout(() => openDetails(loanId), 120);
 }
 
 /* ============================================================
-   16. RETURN
+   18. RETURN
    ============================================================ */
 function returnLoan(loanId){
   const idx = state.loans.findIndex(l => l.id === loanId);
@@ -1030,7 +1236,7 @@ function returnLoan(loanId){
 }
 
 /* ============================================================
-   17. SETTINGS
+   19. SETTINGS
    ============================================================ */
 function openSettings(){
   $("setLoanDays").value = state.settings.loanDays;
@@ -1040,7 +1246,7 @@ function openSettings(){
 function closeSettings(){ $("settingsModal").classList.remove("open"); }
 
 /* ============================================================
-   18. CONFIRM MODAL
+   20. CONFIRM MODAL
    ============================================================ */
 let confirmAction = null;
 function openConfirm({ title, message, confirmText = "Confirm", danger = false }, cb){
@@ -1059,7 +1265,7 @@ function closeConfirm(){
 }
 
 /* ============================================================
-   19. RENDER ALL
+   21. RENDER ALL
    ============================================================ */
 function renderAll(){
   updateStats();
@@ -1070,7 +1276,7 @@ function renderAll(){
 }
 
 /* ============================================================
-   20. EVENT WIRING
+   22. EVENT WIRING
    ============================================================ */
 function setupAppEvents(){
   $("themeToggle").addEventListener("click", () => {
@@ -1121,17 +1327,20 @@ function setupAppEvents(){
     tab.addEventListener("click", () => { ui.tab = tab.dataset.tab; renderLoans(); });
   });
 
-  // Loans panel: view / extend / return
+  // Loans panel: view / extend / return / edit history / delete history
   $("loansPanel").addEventListener("click", e => {
     const v = e.target.closest("button.view");
     if(v){ openDetails(v.dataset.view); return; }
     const ext = e.target.closest("button.extend");
     if(ext){ openExtend(ext.dataset.extend); return; }
     const r = e.target.closest("button.return");
-    if(r){ returnLoan(r.dataset.loan); }
+    if(r){ returnLoan(r.dataset.loan); return; }
+    const eh = e.target.closest("button.edit-history");
+    if(eh){ openEditHistory(eh.dataset.editHistory); return; }
+    const dh = e.target.closest("button.delete-history");
+    if(dh){ deleteHistoryLoan(dh.dataset.deleteHistory); }
   });
 
-  // Borrow form
   $("borrowForm").addEventListener("submit", e => { e.preventDefault(); confirmBorrow(); });
   $("cancelBorrow").addEventListener("click", closeBorrow);
   $("closeBorrow").addEventListener("click", closeBorrow);
@@ -1164,7 +1373,6 @@ function setupAppEvents(){
     $("fName").focus();
   });
 
-  // Admin inventory
   $("addBookBtn").addEventListener("click", () => openInventory(null));
   $("adminSearch").addEventListener("input", renderAdminBooks);
   $("adminBooksBody").addEventListener("click", e => {
@@ -1190,6 +1398,20 @@ function setupAppEvents(){
     closeDetails();
     if(id) returnLoan(id);
   });
+  $("detailsEditHistory").addEventListener("click", () => {
+    const id = detailsLoanId;
+    closeDetails();
+    if(id) openEditHistory(id);
+  });
+  $("detailsDeleteHistory").addEventListener("click", () => {
+    const id = detailsLoanId;
+    if(id) deleteHistoryLoan(id);
+  });
+
+  // Edit history modal
+  $("editHistoryForm").addEventListener("submit", e => { e.preventDefault(); saveEditHistory(); });
+  $("cancelEditHistory").addEventListener("click", closeEditHistory);
+  $("closeEditHistory").addEventListener("click", closeEditHistory);
 
   // Extend modal
   $("extendForm").addEventListener("submit", e => { e.preventDefault(); confirmExtend(); });
@@ -1224,7 +1446,7 @@ function setupAppEvents(){
   $("confirmCancel").addEventListener("click", closeConfirm);
 
   // Click-outside to close
-  ["modal","inventoryModal","detailsModal","extendModal","settingsModal","confirmModal"].forEach(id => {
+  ["modal","inventoryModal","detailsModal","editHistoryModal","extendModal","settingsModal","confirmModal"].forEach(id => {
     $(id).addEventListener("click", e => {
       if(e.target === $(id)) $(id).classList.remove("open");
     });
@@ -1250,14 +1472,14 @@ function setupAppEvents(){
       e.preventDefault(); $("search").focus();
     }
     if(e.key === "Escape"){
-      ["modal","inventoryModal","detailsModal","extendModal","settingsModal","confirmModal"].forEach(id =>
+      ["modal","inventoryModal","detailsModal","editHistoryModal","extendModal","settingsModal","confirmModal"].forEach(id =>
         $(id).classList.remove("open"));
     }
   });
 }
 
 /* ============================================================
-   21. INIT
+   23. INIT
    ============================================================ */
 function init(){
   applyTheme();
