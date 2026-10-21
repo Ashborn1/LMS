@@ -11,15 +11,11 @@
 </head>
 <body>
 
-<!-- AUTH SCREEN -->
 <div class="auth-screen" id="authScreen">
   <aside class="auth-visual">
     <div class="visual-brand">
       <div class="visual-logo">📚</div>
-      <div>
-        <h1>Library Management</h1>
-        <p>Borrowing made simple</p>
-      </div>
+      <div><h1>Library Management</h1><p>Borrowing made simple</p></div>
     </div>
     <ul class="visual-points">
       <li>📖 20 curated titles across 4 subjects</li>
@@ -84,16 +80,11 @@
   </main>
 </div>
 
-<!-- APP SCREEN -->
 <div id="appScreen" hidden>
-
   <header class="site-header">
     <div class="brand">
       <div class="brand-logo">📚</div>
-      <div>
-        <h1>Library Management</h1>
-        <p id="headerDate">IT · Science · English · Social Studies</p>
-      </div>
+      <div><h1>Library Management</h1><p id="headerDate">IT · Science · English · Social Studies</p></div>
     </div>
     <div class="header-actions">
       <div class="user-menu">
@@ -110,13 +101,11 @@
   </header>
 
   <main>
-    <!-- View switcher -->
     <div class="view-tabs" id="viewTabs" role="tablist">
       <button class="view-tab active" data-view="library" role="tab">📚 Library</button>
       <button class="view-tab" data-view="admin" role="tab">🛠️ Admin</button>
     </div>
 
-    <!-- LIBRARY VIEW -->
     <div id="libraryView">
       <section class="stats" id="stats" aria-label="Library statistics"></section>
 
@@ -162,7 +151,6 @@
       <p class="footnote">💾 Your data is saved automatically in this browser.</p>
     </div>
 
-    <!-- ADMIN VIEW -->
     <div id="adminView" hidden>
       <div class="admin-head">
         <div>
@@ -179,12 +167,8 @@
         <table>
           <thead>
             <tr>
-              <th>Title</th>
-              <th>Category</th>
-              <th>Copies</th>
-              <th>On loan</th>
-              <th>Available</th>
-              <th></th>
+              <th>Title</th><th>Category</th><th>Copies</th>
+              <th>On loan</th><th>Available</th><th></th>
             </tr>
           </thead>
           <tbody id="adminBooksBody"></tbody>
@@ -293,7 +277,7 @@
   </div>
 </div>
 
-<!-- INVENTORY MODAL (add/edit book) -->
+<!-- INVENTORY MODAL -->
 <div class="modal" id="inventoryModal" role="dialog" aria-modal="true">
   <div class="modal-box">
     <div class="modal-head">
@@ -339,14 +323,65 @@
 <div class="modal" id="detailsModal" role="dialog" aria-modal="true">
   <div class="modal-box">
     <div class="modal-head">
-      <h3>Loan details</h3>
+      <h3 id="detailsTitle">Loan details</h3>
       <button class="icon-btn" id="closeDetails" aria-label="Close">✕</button>
     </div>
     <div id="detailsBody"></div>
     <div class="modal-actions">
       <button class="btn ghost" id="detailsClose">Close</button>
+      <button class="btn ghost" id="detailsExtend">📅 Extend due date</button>
       <button class="btn danger" id="detailsReturn">Return book</button>
     </div>
+  </div>
+</div>
+
+<!-- EXTEND MODAL -->
+<div class="modal" id="extendModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h3>Extend due date</h3>
+        <p class="modal-sub">Push out the return date and record a reason</p>
+      </div>
+      <button class="icon-btn" id="closeExtend" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-book" id="extendBookInfo"></div>
+
+    <form id="extendForm" class="form-grid" autocomplete="off" novalidate>
+      <div class="field full">
+        <label>Current due date</label>
+        <div class="due-display" id="extendCurrentDue"></div>
+      </div>
+
+      <div class="field full">
+        <label for="extendNewDue">New due date &amp; time <span class="req">*</span></label>
+        <input type="datetime-local" id="extendNewDue">
+      </div>
+
+      <div class="field full">
+        <label>Quick extend (from current due)</label>
+        <div class="preset-row" id="extendPresetRow">
+          <button type="button" class="preset" data-days="1">+1 day</button>
+          <button type="button" class="preset" data-days="3">+3 days</button>
+          <button type="button" class="preset" data-days="7">+1 week</button>
+          <button type="button" class="preset" data-days="14">+2 weeks</button>
+          <button type="button" class="preset" data-days="30">+1 month</button>
+        </div>
+      </div>
+
+      <div class="field full">
+        <label for="extendReason">Reason for extension <span class="req">*</span></label>
+        <textarea id="extendReason" rows="3" placeholder="e.g. Still working on research, project deadline moved, personal circumstances…"></textarea>
+      </div>
+
+      <p class="error full" id="extendError"></p>
+
+      <div class="modal-actions full">
+        <button type="button" class="btn ghost" id="cancelExtend">Cancel</button>
+        <button type="submit" class="btn" id="confirmExtend">Extend due date</button>
+      </div>
+    </form>
   </div>
 </div>
 
