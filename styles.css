@@ -4,9 +4,10 @@ body { font-family: system-ui, sans-serif; margin: 0; background: #f4f6fb; color
 #auth { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 .card { background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.1); width: 320px; display: flex; flex-direction: column; gap: 10px; }
 .card h2 { margin: 0 0 8px; }
-input, button { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+input, select, button { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
 button { background: #4f46e5; color: #fff; border: none; cursor: pointer; }
 button:hover { filter: brightness(1.1); }
+button:disabled { background: #cbd5e1; cursor: not-allowed; filter: none; }
 #logout { background: #ef4444; }
 
 header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
@@ -14,15 +15,23 @@ header h1 { margin: 0; font-size: 20px; }
 
 main { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
 
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+.toolbar input { flex: 1 1 240px; }
+.toolbar select { flex: 0 1 auto; }
+
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
 .book { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .book h3 { margin: 0; font-size: 14px; }
 .book .cat { font-size: 11px; color: #64748b; text-transform: uppercase; }
 .book .avail { font-size: 12px; color: #475569; }
 
+.no-results { text-align: center; color: #64748b; padding: 20px; font-size: 14px; }
+
 table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin-top: 10px; }
 th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eef2f7; font-size: 14px; }
 th { background: #f8fafc; font-size: 12px; text-transform: uppercase; color: #64748b; }
+tr.overdue td { background: #fef2f2; }
+.badge-overdue { color: #b91c1c; font-weight: 600; font-size: 12px; }
 
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; }
 .modal-box { background: #fff; padding: 20px; border-radius: 12px; width: 300px; display: flex; flex-direction: column; gap: 10px; }

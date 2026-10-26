@@ -1,4 +1,4 @@
-// ---- Books ----
+// ---- Books (20 titles, 154 copies) ----
 const BOOKS = [
   // IT
   { id:1,  title:"Cybersecurity", cat:"IT", copies:10 },
@@ -6,21 +6,18 @@ const BOOKS = [
   { id:3,  title:"Fundamentals",  cat:"IT", copies:12 },
   { id:4,  title:"Web",           cat:"IT", copies:7  },
   { id:5,  title:"HCI",           cat:"IT", copies:5  },
-
   // Science
   { id:6,  title:"Biology",              cat:"Science", copies:9 },
   { id:7,  title:"Chemistry",            cat:"Science", copies:8 },
   { id:8,  title:"Physics",              cat:"Science", copies:7 },
   { id:9,  title:"Earth Science",        cat:"Science", copies:6 },
   { id:10, title:"Environmental Science",cat:"Science", copies:5 },
-
   // English
-  { id:11, title:"Grammar",     cat:"English", copies:12 },
-  { id:12, title:"Literature",  cat:"English", copies:8  },
-  { id:13, title:"Writing",     cat:"English", copies:6  },
-  { id:14, title:"Reading",     cat:"English", copies:10 },
-  { id:15, title:"Speaking",    cat:"English", copies:5  },
-
+  { id:11, title:"Grammar",    cat:"English", copies:12 },
+  { id:12, title:"Literature", cat:"English", copies:8  },
+  { id:13, title:"Writing",    cat:"English", copies:6  },
+  { id:14, title:"Reading",    cat:"English", copies:10 },
+  { id:15, title:"Speaking",   cat:"English", copies:5  },
   // Social Studies
   { id:16, title:"Philippine History", cat:"Social Studies", copies:10 },
   { id:17, title:"World History",      cat:"Social Studies", copies:8  },
@@ -28,18 +25,47 @@ const BOOKS = [
   { id:19, title:"Economics",          cat:"Social Studies", copies:6  },
   { id:20, title:"Civics",             cat:"Social Studies", copies:5  }
 ];
+
 // ---- State ----
 let loans = JSON.parse(localStorage.getItem("loans") || "[]");
 let currentUser = localStorage.getItem("user") || "";
 const $ = id => document.getElementById(id);
 
 function save() { localStorage.setItem("loans", JSON.stringify(loans)); }
+const borrowedCount = id => loans.filter(l => l.bookId === id).length;
+
+// ---- Filter + Sort ----
+function getFilteredBooks() {
+  const q = $("search").value.trim().toLowerCase();
+  const cat = $("catFilter").value;
+  const avail = $("availFilter").value;
+  const sort = $("sortBy").value;
+
+  let list = BOOKS.filter(b => {
+    if (cat !== "all" && b.cat !== cat) return false;
+    if (q && !(b.title.toLowerCase().includes(q) || b.cat.toLowerCase().includes(q))) return false;
+    const left = b.copies - borrowedCount(b.id);
+    if (avail === "available" && left <= 0) return false;
+    if (avail === "out" && left > 0) return false;
+    return true;
+  });
+
+  const leftOf = b => b.copies - borrowedCount(b.id);
+  if (sort === "title-asc")  list.sort((a, b) => a.title.localeCompare(b.title));
+  if (sort === "title-desc") list.sort((a, b) => b.title.localeCompare(a.title));
+  if (sort === "avail-desc") list.sort((a, b) => leftOf(b) - leftOf(a));
+  if (sort === "avail-asc")  list.sort((a, b) => leftOf(a) - leftOf(b));
+
+  return list;
+}
 
 // ---- Render ----
 function renderBooks() {
-  const borrowed = id => loans.filter(l => l.bookId === id).length;
-  $("books").innerHTML = BOOKS.map(b => {
-    const avail = b.copies - borrowed(b.id);
+  const list = getFilteredBooks();
+  $("noResults").hidden = list.length > 0;
+
+  $("books").innerHTML = list.map(b => {
+    const avail = b.copies - borrowedCount(b.id);
     return `<div class="book">
       <h3>${b.title}</h3>
       <span class="cat">${b.cat}</span>
@@ -50,16 +76,22 @@ function renderBooks() {
 }
 
 function renderLoans() {
+  const today = new Date(); today.setHours(0,0,0,0);
+
   $("loansBody").innerHTML = loans.map(l => {
     const book = BOOKS.find(b => b.id === l.bookId);
-    return `<tr>
+    const due = new Date(l.due); due.setHours(0,0,0,0);
+    const overdue = due < today;
+    return `<tr class="${overdue ? "overdue" : ""}">
       <td>${book ? book.title : "Unknown"}</td>
       <td>${l.borrower}</td>
-      <td>${l.due}</td>
+      <td>${l.due}${overdue ? ' <span class="badge-overdue">Overdue</span>' : ""}</td>
       <td><button onclick="returnBook(${l.id})">Return</button></td>
     </tr>`;
   }).join("");
+
   $("noLoans").hidden = loans.length > 0;
+  $("loansTable").hidden = loans.length === 0;
 }
 
 function render() { renderBooks(); renderLoans(); }
@@ -87,9 +119,7 @@ function confirmBorrow() {
 
   const book = BOOKS.find(b => b.id === borrowBookId);
   if (!book) return;
-
-  const borrowed = loans.filter(l => l.bookId === book.id).length;
-  if (borrowed >= book.copies) { $("modalErr").textContent = "No copies left"; return; }
+  if (borrowedCount(book.id) >= book.copies) { $("modalErr").textContent = "No copies left"; return; }
 
   loans.push({ id: Date.now(), bookId: book.id, borrower: name, due });
   save();
@@ -124,7 +154,7 @@ $("loginBtn").onclick = () => {
     localStorage.setItem("user", u);
     showApp();
   } else {
-    $("loginErr").textContent = "Wrong credentials (admin/admin123)";
+    $("loginErr").textContent = "Wrong credentials (admin / admin123)";
   }
 };
 
@@ -134,6 +164,13 @@ $("logout").onclick = () => {
   showAuth();
 };
 
+// ---- Filter/Search events ----
+$("search").oninput = renderBooks;
+$("catFilter").onchange = renderBooks;
+$("sortBy").onchange = renderBooks;
+$("availFilter").onchange = renderBooks;
+
+// ---- Modal events ----
 $("cancelBorrow").onclick = closeBorrow;
 $("confirmBorrow").onclick = confirmBorrow;
 
