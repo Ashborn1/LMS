@@ -1,55 +1,39 @@
 # 📚 Library Management System
 
-A complete, dependency-free library circulation desk that runs entirely in the browser. Sign in, browse a curated catalog, record borrowings with full borrower details, track due dates, and manage inventory — no server, database, or build step required.
+A small, dependency-free library circulation desk that runs entirely in the browser. Sign in, browse the catalog, record a borrowing with a borrower name and due date, and check books back in.
 
-Everything is stored in `localStorage`, so the app works offline and remembers your data between visits. The only network request is the optional Google Fonts import for the Inter typeface, which falls back to the system font stack.
+The project is deliberately minimal: three files, no frameworks, no packages, and no build step. Open `index.html` and it works. Loans and the signed-in user are kept in `localStorage`, so the app remembers them between visits.
+
+> **Status:** working prototype. The core circulation flow — sign in → borrow → track → return — is complete. Features such as search, borrower records beyond a name, return history, and inventory editing are **not** implemented yet. See [Possible next steps](#-possible-next-steps).
 
 ---
 
 ## ✨ Features
 
 ### Accounts & access
-- Sign-in and registration with inline validation
-- "Remember me" — persistent session in `localStorage`, or session-only when unchecked
-- Case-sensitive usernames, password visibility toggles, and a seeded demo account
-- Personal greeting and avatar initial in the header
-- Sign-out from any screen
+- Sign-in screen with a single administrator account
+- Inline error message on a failed sign-in
+- Session persisted in `localStorage`, so a signed-in user stays signed in after a refresh
+- Log out clears the stored session and returns to the sign-in screen
 
-### Catalog & discovery
-- 20 seeded titles across 4 subjects — IT, Science, English, and Social Studies — with **154 total copies**
-- Live statistics for book titles, total copies, available copies, and copies on loan
-- Category filter chips with per-category counts
-- Instant search across titles and categories, with matched text highlighted
-- Sort by title (A–Z / Z–A), availability, or category
-- Filter to available titles only, or show fully borrowed titles
-- Availability bar on every card with one-click **Borrow**
-- Empty states for no results, empty catalogs, and no loans
-- Clear all filters in one click
+### Catalog
+- 20 seeded titles across 4 subjects — IT, Science, English, and Social Studies — for a total of **154 copies**
+- Responsive card grid showing each title, its subject, and live availability (`N of M available`)
+- Availability is recalculated on every render from the book's copy count minus its active loans
+- The **Borrow** button is disabled automatically once every copy of a title is on loan
 
 ### Borrowing & returns
-- Detailed borrower record: full name, borrower type (Student / Faculty / Staff / Guest), student or ID number, section/department, gender, and contact
-- Date & time borrowed plus a custom due date and time
-- Quick loan presets: 1 day, 3 days, 1 week, 2 weeks, 1 month
-- Free-text notes on each loan
-- "Recent borrowers" chips to re-use a previous borrower's details in one click
-- Active loans sorted by nearest due date, with status badges: *Overdue by Nd*, *Due today*, *Due in Nd*, *Nd left*
-- Overdue rows highlighted, plus loan detail view and one-click return
-- Full return history, newest first
+- Borrow dialog with a borrower name and a due date
+- The due date pre-fills to 14 days ahead and can be changed
+- Validation rejects an empty borrower name or due date, and blocks borrowing when no copies remain
+- **Active Loans** table listing the book, borrower, and due date
+- One-click **Return**, which removes the loan and immediately returns the copy to available stock
+- "No active loans." empty state when the ledger is clear
 
-### Inventory management
-- Admin view with a searchable inventory table (title, category, copies, on loan, available)
-- Add, edit, and delete books
-- Automatic ID generation with category prefixes (`IT-1`, `SCI-2`, `ENG-3`, `SS-4`)
-- Guard rails: copy count can't be set below the number of active loans, and deleting a book that's on loan warns you first
-- Inventory and circulation share one live data set, so changes appear instantly everywhere
-
-### Experience
-- Light and dark themes, remembered across sessions
-- Responsive layout for desktop, tablet, and mobile (breakpoints at 900px and 640px)
-- Toast notifications and confirmation dialogs for every destructive action
-- Modals close on `Esc` or by clicking the backdrop
-- Respects `prefers-reduced-motion`
-- All user-supplied text is HTML-escaped before rendering
+### Interface
+- Single light theme built on system fonts
+- Responsive card grid (`auto-fill`, `minmax(220px, 1fr)`) that reflows down to phone width
+- Centered sign-in card, plus a simple header showing the current user and a Log out button
 - No frameworks, no packages, no build step — just three files
 
 ---
@@ -60,7 +44,7 @@ Everything is stored in `localStorage`, so the app works offline and remembers y
 | -------- | -------- |
 | `admin`  | `admin123` |
 
-The account is seeded automatically the first time the app loads in a fresh browser. You can also create your own account from the **Create account** tab.
+These credentials are hard-coded in the login handler in `script.js` and are shown as input placeholders on the sign-in screen. There is **no registration** — the account above is the only way in.
 
 ---
 
@@ -96,22 +80,12 @@ There is nothing to install, compile, or configure.
 
 ## 🧭 How to use it
 
-1. **Sign in** with the demo account or create your own.
-2. **Browse the Library** — filter by subject, search, sort, and inspect availability.
-3. **Borrow a book** — click *Borrow* on any available card, fill in the borrower and loan details, pick a due date (or hit a preset), and confirm.
-4. **Track loans** — the **Loans** section shows active loans with due-date status. Open *View* for the full record, or *Return* to check a book back in.
-5. **Review history** — switch to the **History** tab to see every returned loan.
-6. **Manage inventory** — open the **Admin** tab to add, edit, or delete titles and set copy counts.
-7. **Tune behavior** — use the ⚙️ settings button to change the default loan period or make the student ID optional.
-
----
-
-## ⌨️ Keyboard shortcuts
-
-| Key      | Action                                  |
-| -------- | --------------------------------------- |
-| `/`      | Focus the catalog search (Library view) |
-| `Esc`    | Close any open modal                    |
+1. **Sign in** with `admin` / `admin123`.
+2. **Browse the catalog** — every title shows its subject and how many copies are available.
+3. **Borrow a book** — click *Borrow* on any available card, enter the borrower's name, adjust the due date if needed, and confirm. The copy count drops by one immediately.
+4. **Track loans** — the **Active Loans** table lists each loan's book, borrower, and due date.
+5. **Return a book** — click *Return* on a loan row. The loan is removed and the copy becomes available again.
+6. **Log out** when finished. Your loans stay in the browser for the next visit.
 
 ---
 
@@ -119,77 +93,66 @@ There is nothing to install, compile, or configure.
 
 ```
 LMS/
-├── index.html    # Markup: auth screen, app shell, library + admin views, all modals
-├── styles.css    # Design tokens, light/dark themes, components, responsive rules
-├── script.js     # State, auth, rendering, borrowing, inventory, events, init
+├── index.html    # Markup: sign-in screen, app shell, book grid, loans table, borrow dialog
+├── styles.css    # Layout, card grid, table, dialog styling
+├── script.js     # Book data, state, rendering, borrowing, returns, sign-in
 └── README.md
 ```
 
-`script.js` is organized into 20 numbered sections — config, helpers, toasts, auth, state, theme, stats, catalog, loans, admin, modals, and initialization — so it stays easy to navigate.
+`script.js` is about 130 lines and is organised into commented sections: books, state, render, borrow, login, and start.
 
 ---
 
 ## 💾 Data & storage
 
-All data lives in the browser's `localStorage` under three keys:
+All data lives in the browser's `localStorage` under two keys:
 
-| Key           | Contents                                                        |
-| ------------- | --------------------------------------------------------------- |
-| `lms_v4`      | Books, active loans, return history, theme, and settings        |
-| `lms_users`   | Registered accounts and password hashes                         |
-| `lms_session` | The signed-in user (written to `sessionStorage` when "Remember me" is off) |
+| Key     | Contents                                        |
+| ------- | ----------------------------------------------- |
+| `loans` | JSON array of active loans                       |
+| `user`  | The signed-in username (removed on log out)      |
 
-A book record looks like:
+A book record looks like this (held in the `BOOKS` constant in `script.js`, not in storage):
 
 ```js
-{ id: "IT-1", category: "IT", title: "Cybersecurity Essentials", copies: 10 }
+{ id: 1, title: "Cybersecurity Essentials", cat: "IT", copies: 10 }
 ```
 
-A loan record looks like:
+A loan record looks like this:
 
 ```js
 {
-  id: "L1712345678901-x9k2a",
-  bookId: "IT-1",
-  borrower: {
-    name: "Juan Dela Cruz",
-    type: "Student",
-    studentId: "2024-00123",
-    section: "BSIT 2-A",
-    gender: "",
-    contact: "juan@example.com"
-  },
-  date: "2026-10-21T08:00:00.000Z",
-  dueDate: "2026-11-04T08:00:00.000Z",
-  notes: "",
-  returnedAt: null
+  id: 1712345678901,          // Date.now() at borrow time
+  bookId: 1,                  // matches a BOOKS id
+  borrower: "Juan Dela Cruz",
+  due: "2026-11-09"           // date-only string from the date input
 }
 ```
 
-Returned loans move from `loans` into `history` with a `returnedAt` timestamp.
+Availability for a title is `copies − (number of active loans for that book)`. Returning a loan **deletes** the record — there is no return history.
 
-> **Data is per browser and per device.** There's no backend sync, and clearing site data or using a different browser/profile starts you fresh. The **Reset** button clears loans and history but keeps your inventory untouched.
+> **Data is per browser and per device.** There is no backend sync, and clearing site data or using a different browser/profile starts you fresh. Because the catalog lives in code rather than storage, clearing storage only clears loans.
 
 ---
 
 ## ⚙️ Customization
 
-| What                          | Where                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| Seed catalog                  | `DEFAULT_BOOKS` in `script.js`                                           |
-| Categories                    | `CATEGORIES` in `script.js`, plus the `<select>` options in `index.html` |
-| Category icons and accents    | `CATEGORY_ICONS`, `CATEGORY_COLORS`, and `CATEGORY_PREFIX` in `script.js` |
-| Default loan period           | `DEFAULT_SETTINGS.loanDays`, or in-app via ⚙️ Settings                    |
-| Theme colors, fonts, spacing  | CSS custom properties in `:root` and `[data-theme="dark"]` in `styles.css` |
-| Storage keys / schema version | `STORAGE_KEY`, `USERS_KEY`, `SESSION_KEY` in `script.js`                  |
+| What                        | Where                                                            |
+| --------------------------- | ---------------------------------------------------------------- |
+| Catalog (titles, subject, copy counts) | the `BOOKS` array at the top of `script.js`            |
+| Categories                  | the `cat` values in `BOOKS` (IT, Science, English, Social Studies) |
+| Default due date offset     | `due.setDate(due.getDate() + 14)` in `openBorrow()`               |
+| Credentials                 | the `u === "admin" && p === "admin123"` check in the login handler |
+| Colors, spacing, layout     | the rules in `styles.css`                                         |
+| Storage keys                | the `"loans"` and `"user"` string literals in `script.js`          |
 
-**To reseed the catalog:** edit `DEFAULT_BOOKS`, then clear the site's local storage (DevTools → Application → Local Storage) — or bump `STORAGE_KEY` from `lms_v4` to `lms_v5` — and reload.
+Changing `BOOKS` takes effect immediately on reload — no storage clear needed, since the catalog isn't persisted.
 
 ---
 
 ## 🌐 Browser support
 
-Works in current versions of Chrome, Edge, Firefox, and Safari. It relies on modern standards only: CSS custom properties, `localStorage` / `sessionStorage`, `matchMedia`, and custom modal overlays built from plain elements. No polyfills or transpilation required.
+Works in current versions of Chrome, Edge, Firefox, and Safari. It relies only on standard features: CSS Grid, `localStorage`, and `Date`. No polyfills or transpilation required.
 
 ---
 
@@ -197,12 +160,29 @@ Works in current versions of Chrome, Edge, Firefox, and Safari. It relies on mod
 
 This is a **front-end demo**, not a production circulation system:
 
-- Accounts and passwords live in `localStorage` and are hashed with a simple non-cryptographic function. Never use real credentials or real patron data here.
-- All accounts on the same browser share one inventory and one loan ledger; accounts only control sign-in.
-- Duplicate copy counts aren't tracked per physical copy — availability is calculated as `copies − active loans`.
-- There is no multi-device sync, backup, import/export, or server-side validation.
+- The username and password are hard-coded in `script.js` and visible to anyone who views the source. Never use real credentials here.
+- There is no server, so there is no real authentication, authorization, or data validation beyond the browser.
+- Only a borrower **name** is recorded — no borrower type, ID number, section, or contact details.
+- The due date is a date only (no time), and due dates are stored but never acted on: there is no overdue flagging or reminder.
+- Loans are tracked per title, not per physical copy.
+- Returning a loan deletes it, so there is no history and no undo.
+- The catalog cannot be edited in the app — titles and copy counts are changed in code.
+- There is no search, sorting, filtering, or pagination; all 20 titles render at once.
+- One light theme only; no dark mode.
+- No multi-device sync, backup, import, or export.
 
-For real deployment, move accounts, authentication, and records to a backend with proper password hashing and per-user authorization.
+---
+
+## 🗺️ Possible next steps
+
+- Record borrower type, student/ID number, section, and contact details
+- Store returned loans separately to build a return history
+- Flag overdue loans and sort active loans by nearest due date
+- Add search, subject filters, and sorting to the catalog
+- Add an admin view to create, edit, and delete titles and set copy counts
+- Track copies individually and allow multiple copies per loan
+- Add a light/dark theme toggle
+- Move accounts and records to a backend with properly hashed passwords
 
 ---
 
