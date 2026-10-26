@@ -1,27 +1,33 @@
 // ---- Books ----
 const BOOKS = [
-  { id:1, title:"Cybersecurity Essentials", cat:"IT", copies:10 },
-  { id:2, title:"Networking Fundamentals", cat:"IT", copies:8 },
-  { id:3, title:"IT Fundamentals", cat:"IT", copies:12 },
-  { id:4, title:"Web Development", cat:"IT", copies:7 },
-  { id:5, title:"Human-Computer Interaction", cat:"IT", copies:5 },
-  { id:6, title:"General Biology", cat:"Science", copies:9 },
-  { id:7, title:"Chemistry Basics", cat:"Science", copies:8 },
-  { id:8, title:"Physics Principles", cat:"Science", copies:7 },
-  { id:9, title:"Earth and Space Science", cat:"Science", copies:6 },
-  { id:10, title:"Environmental Science", cat:"Science", copies:5 },
-  { id:11, title:"English Grammar", cat:"English", copies:12 },
-  { id:12, title:"World Literature", cat:"English", copies:8 },
-  { id:13, title:"Creative Writing", cat:"English", copies:6 },
-  { id:14, title:"Reading Comprehension", cat:"English", copies:10 },
-  { id:15, title:"Public Speaking", cat:"English", copies:5 },
-  { id:16, title:"Philippine History", cat:"Social Studies", copies:10 },
-  { id:17, title:"World History", cat:"Social Studies", copies:8 },
-  { id:18, title:"Geography", cat:"Social Studies", copies:7 },
-  { id:19, title:"Economics", cat:"Social Studies", copies:6 },
-  { id:20, title:"Government and Civics", cat:"Social Studies", copies:5 }
-];
+  // IT
+  { id:1,  title:"Cybersecurity", cat:"IT", copies:10 },
+  { id:2,  title:"Networking",    cat:"IT", copies:8  },
+  { id:3,  title:"Fundamentals",  cat:"IT", copies:12 },
+  { id:4,  title:"Web",           cat:"IT", copies:7  },
+  { id:5,  title:"HCI",           cat:"IT", copies:5  },
 
+  // Science
+  { id:6,  title:"Biology",              cat:"Science", copies:9 },
+  { id:7,  title:"Chemistry",            cat:"Science", copies:8 },
+  { id:8,  title:"Physics",              cat:"Science", copies:7 },
+  { id:9,  title:"Earth Science",        cat:"Science", copies:6 },
+  { id:10, title:"Environmental Science",cat:"Science", copies:5 },
+
+  // English
+  { id:11, title:"Grammar",     cat:"English", copies:12 },
+  { id:12, title:"Literature",  cat:"English", copies:8  },
+  { id:13, title:"Writing",     cat:"English", copies:6  },
+  { id:14, title:"Reading",     cat:"English", copies:10 },
+  { id:15, title:"Speaking",    cat:"English", copies:5  },
+
+  // Social Studies
+  { id:16, title:"Philippine History", cat:"Social Studies", copies:10 },
+  { id:17, title:"World History",      cat:"Social Studies", copies:8  },
+  { id:18, title:"Geography",          cat:"Social Studies", copies:7  },
+  { id:19, title:"Economics",          cat:"Social Studies", copies:6  },
+  { id:20, title:"Civics",             cat:"Social Studies", copies:5  }
+];
 // ---- State ----
 let loans = JSON.parse(localStorage.getItem("loans") || "[]");
 let currentUser = localStorage.getItem("user") || "";
