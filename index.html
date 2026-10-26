@@ -22,7 +22,7 @@
 <!-- APP -->
 <div id="app" hidden>
   <header>
-    <h1>📚 Library Management System</h1>
+    <h1>📚 Library</h1>
     <div>
       <span id="who"></span>
       <button id="logout">Log out</button>
@@ -30,7 +30,31 @@
   </header>
 
   <main>
+    <!-- Filter / Search bar -->
+    <div class="toolbar">
+      <input id="search" placeholder="🔍 Search title or category…">
+      <select id="catFilter">
+        <option value="all">All Categories</option>
+        <option value="IT">IT</option>
+        <option value="Science">Science</option>
+        <option value="English">English</option>
+        <option value="Social Studies">Social Studies</option>
+      </select>
+      <select id="sortBy">
+        <option value="title-asc">Title (A–Z)</option>
+        <option value="title-desc">Title (Z–A)</option>
+        <option value="avail-desc">Most Available</option>
+        <option value="avail-asc">Least Available</option>
+      </select>
+      <select id="availFilter">
+        <option value="all">All Books</option>
+        <option value="available">Available Only</option>
+        <option value="out">Fully Borrowed</option>
+      </select>
+    </div>
+
     <div id="books" class="grid"></div>
+    <p id="noResults" class="no-results" hidden>No books match your search.</p>
 
     <h2>Active Loans</h2>
     <table id="loansTable">
