@@ -147,7 +147,7 @@ function showAuth() {
 }
 
 $("loginBtn").onclick = () => {
-  const u = $("user").value.trim();
+  const u = $("user").value;
   const p = $("pass").value;
   if (u === "admin" && p === "admin123") {
     currentUser = u;
