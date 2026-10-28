@@ -67,7 +67,7 @@ $("loginForm").onsubmit = (e) => {
   e.preventDefault(); // Prevents page reload
   $("loginErr").textContent = "";
   
-  const u = $("user").value.trim();
+  const u = $("user").value;
   const p = $("pass").value;
   const found = users.find(x => x.username === u && x.password === p);
   
@@ -107,8 +107,10 @@ function submitAuthTicket() {
     return;
   }
   
+  const newTicketId = Date.now();
+  
   tickets.unshift({
-    id: Date.now(),
+    id: newTicketId,
     userId: "guest",
     userName: name + " (Guest)",
     subject: "Account Recovery: " + user,
@@ -118,9 +120,97 @@ function submitAuthTicket() {
     replies: []
   });
   
+  // Save ticket ID to local storage so guest can track it
+  let guestTickets = JSON.parse(localStorage.getItem("guestTickets") || "[]");
+  guestTickets.push(newTicketId);
+  localStorage.setItem("guestTickets", JSON.stringify(guestTickets));
+  
   save();
   $("authTicketModal").hidden = true;
-  alert("Ticket sent! The Admin will review it soon.");
+  alert("Ticket sent! You can track it by clicking 'Track my submitted tickets' below.");
+}
+
+function openGuestTickets(e) {
+  e.preventDefault();
+  renderGuestTickets();
+  $("guestTicketsModal").hidden = false;
+}
+
+function renderGuestTickets() {
+  const guestTickets = JSON.parse(localStorage.getItem("guestTickets") || "[]");
+  const myTickets = tickets.filter(t => guestTickets.includes(t.id));
+  
+  const container = $("guestTicketsList");
+  
+  if (myTickets.length === 0) {
+    container.innerHTML = `<p style="text-align: center; color: #64748b; font-style: italic;">You haven't submitted any tickets yet.</p>`;
+    return;
+  }
+  
+  container.innerHTML = myTickets.map(t => {
+    // Render replies
+    let repliesHtml = "";
+    if (t.replies && t.replies.length > 0) {
+      repliesHtml = `<div class="guest-ticket-replies">
+        ${t.replies.map(r => `
+          <div class="reply-bubble ${r.sender === 'Admin' || r.sender === 'Bookkeeper' ? 'admin' : 'student'}">
+            <strong>${r.sender}:</strong> ${r.text}
+            <div class="reply-meta">${r.date}</div>
+          </div>
+        `).join("")}
+      </div>`;
+    }
+
+    let replyInput = "";
+    if (t.status === 'Open') {
+      replyInput = `
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <input id="greply-${t.id}" placeholder="Type your reply..." style="flex: 1; padding: 8px; font-size: 13px; border-radius: 6px;">
+          <button class="small" onclick="submitGuestReply(${t.id})">Send</button>
+        </div>
+      `;
+    } else {
+      replyInput = `<p style="font-size: 12px; color: #64748b; margin-top: 8px; font-style: italic;">This ticket is resolved. The Admin must reopen it for you to chat.</p>`;
+    }
+
+    return `
+      <div class="guest-ticket-card">
+        <div class="guest-ticket-header">
+          <div>
+            <div class="guest-ticket-title">${t.subject}</div>
+            <div class="guest-ticket-date">Submitted on ${t.date}</div>
+          </div>
+          <span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+            ${t.status}
+          </span>
+        </div>
+        <div class="guest-ticket-desc">"${t.desc}"</div>
+        ${repliesHtml}
+        ${replyInput}
+      </div>
+    `;
+  }).join("");
+}
+
+function submitGuestReply(ticketId) {
+  const input = $(`greply-${ticketId}`);
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  
+  const t = tickets.find(x => x.id === ticketId);
+  if (!t) return;
+  
+  if (!t.replies) t.replies = [];
+  
+  t.replies.push({
+    sender: "Guest",
+    text: text,
+    date: new Date().toLocaleString()
+  });
+  
+  save();
+  renderGuestTickets(); // Re-render to show new message
 }
 
 function showApp() {
@@ -1006,7 +1096,6 @@ function viewTicket(id) {
     rContainer.innerHTML = `<p style="font-size: 13px; color: #94a3b8; font-style: italic; text-align: center;">No replies yet.</p>`;
   } else {
     rContainer.innerHTML = t.replies.map(r => {
-      // Check if sender is admin to style bubble
       const isAdminReply = r.sender === 'Admin' || r.sender === 'Bookkeeper';
       return `
         <div class="reply-bubble ${isAdminReply ? 'admin' : 'student'}">
