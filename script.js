@@ -62,12 +62,29 @@ function getThemeClass(cat) {
 
 const borrowedCount = id => loans.filter(l => l.bookId === id).length;
 
-// ---- AUTHENTICATION (FORM SUBMIT) ----
-$("loginForm").onsubmit = (e) => {
-  e.preventDefault(); // Prevents page reload
-  $("loginErr").textContent = "";
+// ---- CUSTOM CONFIRM MODAL ----
+function showConfirm(title, message, onConfirm) {
+  $("confirmTitle").textContent = title;
+  $("confirmMessage").textContent = message;
   
-  const u = $("user").value;
+  const btn = $("confirmBtn");
+  // Remove old listeners by cloning
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  
+  newBtn.onclick = () => {
+    $("confirmModal").hidden = true;
+    onConfirm();
+  };
+  
+  $("confirmModal").hidden = false;
+}
+
+// ---- AUTHENTICATION ----
+$("loginForm").onsubmit = (e) => {
+  e.preventDefault();
+  $("loginErr").textContent = "";
+  const u = $("user").value.trim();
   const p = $("pass").value;
   const found = users.find(x => x.username === u && x.password === p);
   
@@ -87,7 +104,7 @@ $("logout").onclick = () => {
   $("app").hidden = true;
 };
 
-// ---- GUEST TICKETS (From Login Page) ----
+// ---- GUEST TICKETS ----
 function openAuthTicketModal(e) {
   e.preventDefault();
   $("authName").value = "";
@@ -120,7 +137,6 @@ function submitAuthTicket() {
     replies: []
   });
   
-  // Save ticket ID to local storage so guest can track it
   let guestTickets = JSON.parse(localStorage.getItem("guestTickets") || "[]");
   guestTickets.push(newTicketId);
   localStorage.setItem("guestTickets", JSON.stringify(guestTickets));
@@ -148,7 +164,6 @@ function renderGuestTickets() {
   }
   
   container.innerHTML = myTickets.map(t => {
-    // Render replies
     let repliesHtml = "";
     if (t.replies && t.replies.length > 0) {
       repliesHtml = `<div class="guest-ticket-replies">
@@ -210,9 +225,10 @@ function submitGuestReply(ticketId) {
   });
   
   save();
-  renderGuestTickets(); // Re-render to show new message
+  renderGuestTickets();
 }
 
+// ---- APP LOGIC ----
 function showApp() {
   $("auth").hidden = true;
   $("app").hidden = false;
@@ -224,6 +240,7 @@ function showApp() {
   const isAdmin = currentUser.role === "Admin";
 
   $("navCatalog").hidden = isAdmin;
+  $("navMyRequests").hidden = !isStudent;
   $("navRequests").hidden = !isBookkeeper;
   $("navLoans").hidden = isAdmin;
   $("navHistory").hidden = isAdmin;
@@ -231,7 +248,6 @@ function showApp() {
   $("navUsers").hidden = !isAdmin;
   $("navTickets").hidden = isBookkeeper;
 
-  // Admin cannot create tickets
   $("btnNewTicket").style.display = isAdmin ? "none" : "block";
 
   if (isAdmin) switchView("users");
@@ -239,19 +255,19 @@ function showApp() {
   else switchView("catalog");
 }
 
-// ---- NAVIGATION ----
 function switchView(viewName) {
-  ['catalog', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
+  ['catalog', 'my-requests', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
     $("view-" + v).hidden = true;
-    const navBtn = $("nav" + v.charAt(0).toUpperCase() + v.slice(1));
+    const navBtn = $("nav" + v.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(''));
     if (navBtn) navBtn.classList.remove("active");
   });
   
   $("view-" + viewName).hidden = false;
-  const activeBtn = $("nav" + viewName.charAt(0).toUpperCase() + viewName.slice(1));
+  const activeBtn = $("nav" + viewName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(''));
   if (activeBtn) activeBtn.classList.add("active");
 
   if (viewName === 'catalog') renderCatalog();
+  if (viewName === 'my-requests') renderMyRequests();
   if (viewName === 'requests') renderRequests();
   if (viewName === 'loans') renderLoans();
   if (viewName === 'history') renderHistory();
@@ -260,7 +276,7 @@ function switchView(viewName) {
   if (viewName === 'tickets') renderTickets();
 }
 
-// ---- CATALOG & BOOK INFO ----
+// ---- CATALOG ----
 function renderCatalog() {
   const q = $("search").value.toLowerCase();
   const cat = $("catFilter").value;
@@ -277,7 +293,6 @@ function renderCatalog() {
     return matchSearch && matchCat;
   });
 
-  // Sort logic
   filtered.sort((a, b) => {
     if (sortBy === "title-asc") return a.title.localeCompare(b.title);
     if (sortBy === "title-desc") return b.title.localeCompare(a.title);
@@ -337,47 +352,60 @@ function openBookInfo(id) {
   $("bookInfoModal").hidden = false;
 }
 
-// ---- STUDENT: REQUEST BORROWING ----
-let requestingBookId = null;
+// ---- MY REQUESTS (STUDENT) ----
+let editReqId = null;
 
-function openRequest(id) {
-  requestingBookId = id;
-  const b = books.find(x => x.id === id);
+function renderMyRequests() {
+  const myReqs = requests.filter(r => r.studentId === currentUser.id);
+  $("noMyRequests").hidden = myReqs.length > 0;
   
-  // Auto-fill from currentUser
-  $("reqName").value = currentUser.name;
-  $("reqStudentId").value = currentUser.studentNum || "Not Set";
-  $("reqSection").value = currentUser.section || "Not Set";
-  
-  $("reqContact").value = "";
-  $("reqNotes").value = "";
-  $("reqErr").textContent = "";
-  $("reqBookName").textContent = b.title;
-  
-  $("requestModal").hidden = false;
+  $("myRequestsBody").innerHTML = myReqs.map(r => {
+    const book = books.find(b => b.id === r.bookId);
+    return `<tr>
+      <td><strong>${book ? book.title : "Unknown"}</strong></td>
+      <td>${r.dateRequested}</td>
+      <td>${r.notes || "—"}</td>
+      <td><span style="color: #b45309; font-weight: 600;">Pending</span></td>
+      <td>
+        <div class="actions-cell">
+          <button class="ghost small" onclick="openEditRequest(${r.id})">Edit</button>
+          <button class="ghost danger small" onclick="cancelRequest(${r.id})">Cancel</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
 }
 
-function submitRequest() {
-  if (!currentUser.studentNum || !currentUser.section) {
-    $("reqErr").textContent = "Your profile is missing Student ID or Section. Please contact Admin.";
-    return;
-  }
-
-  requests.push({
-    id: Date.now(),
-    bookId: requestingBookId,
-    studentId: currentUser.id,
-    studentName: currentUser.name,
-    reqStudentId: currentUser.studentNum,
-    reqSection: currentUser.section,
-    reqContact: $("reqContact").value.trim(),
-    notes: $("reqNotes").value.trim(),
-    dateRequested: new Date().toISOString().slice(0, 10)
-  });
+function openEditRequest(reqId) {
+  editReqId = reqId;
+  const req = requests.find(r => r.id === reqId);
+  const book = books.find(b => b.id === req.bookId);
   
-  save();
-  $("requestModal").hidden = true;
-  renderCatalog();
+  $("erBookName").textContent = book ? book.title : "Unknown";
+  $("erNotes").value = req.notes || "";
+  $("erErr").textContent = "";
+  $("editRequestModal").hidden = false;
+}
+
+function saveEditRequest() {
+  const newNotes = $("erNotes").value.trim();
+  const req = requests.find(r => r.id === editReqId);
+  
+  if (req) {
+    req.notes = newNotes;
+    save();
+    $("editRequestModal").hidden = true;
+    renderMyRequests();
+  }
+}
+
+function cancelRequest(reqId) {
+  showConfirm("Cancel Request", "Are you sure you want to cancel this borrow request?", () => {
+    requests = requests.filter(r => r.id !== reqId);
+    save();
+    renderMyRequests();
+    renderCatalog(); // Refresh catalog to re-enable Request button
+  });
 }
 
 // ---- BOOKKEEPER: APPROVE/REJECT REQUESTS ----
@@ -418,7 +446,6 @@ function openViewRequest(reqId) {
   $("viewRequestModal").hidden = false;
 }
 
-// Bookkeeper: Approve
 function promptApprove() {
   $("viewRequestModal").hidden = true;
   const req = requests.find(r => r.id === viewingRequestId);
@@ -456,7 +483,6 @@ function approveRequest() {
   renderRequests();
 }
 
-// Bookkeeper: Reject
 function promptReject() {
   $("viewRequestModal").hidden = true;
   $("rejectReason").value = "";
@@ -474,7 +500,6 @@ function submitReject() {
   const reqIndex = requests.findIndex(r => r.id === viewingRequestId);
   const req = requests[reqIndex];
   
-  // Move to rejections for history
   req.status = "Rejected";
   req.reason = reason;
   req.dateProcessed = new Date().toISOString().slice(0, 10);
@@ -489,8 +514,6 @@ function submitReject() {
 // ---- LOANS & EXTENSIONS ----
 function renderLoans() {
   const isStudent = currentUser.role === 'Student';
-  
-  // FILTER: Students only see their own loans
   const visibleLoans = isStudent 
     ? loans.filter(l => l.borrowerId === currentUser.id) 
     : loans;
@@ -578,7 +601,6 @@ function viewRejection(id) {
   $("viewRejectionModal").hidden = false;
 }
 
-// Bookkeeper: Direct Extend
 let extendingLoanId = null;
 
 function openExtendLoan(id) {
@@ -613,7 +635,6 @@ function saveExtendLoan() {
   renderLoans();
 }
 
-// Student: Request Extend
 let extReqLoanId = null;
 
 function openExtendRequest(loanId) {
@@ -705,10 +726,11 @@ function approveExtension() {
 }
 
 function rejectExtension(id) {
-  if (!confirm("Reject extension?")) return;
-  extensionRequests = extensionRequests.filter(r => r.id !== id);
-  save();
-  switchView("requests");
+  showConfirm("Reject Extension", "Are you sure you want to reject this extension request?", () => {
+    extensionRequests = extensionRequests.filter(r => r.id !== id);
+    save();
+    switchView("requests");
+  });
 }
 
 function returnBook(loanId) {
@@ -809,17 +831,19 @@ function renderHistory() {
 }
 
 function deleteHistory(id) {
-  if(!confirm("Delete this history record?")) return;
-  history = history.filter(h => h.id !== id);
-  save();
-  renderHistory();
+  showConfirm("Delete History Record", "Are you sure you want to permanently delete this record?", () => {
+    history = history.filter(h => h.id !== id);
+    save();
+    renderHistory();
+  });
 }
 
 function deleteRejection(id) {
-  if(!confirm("Delete this rejected request record?")) return;
-  rejections = rejections.filter(r => r.id !== id);
-  save();
-  renderHistory();
+  showConfirm("Delete Rejection Record", "Are you sure you want to permanently delete this rejected request?", () => {
+    rejections = rejections.filter(r => r.id !== id);
+    save();
+    renderHistory();
+  });
 }
 
 // ---- BOOKKEEPER: MANAGE BOOKS ----
@@ -918,10 +942,11 @@ function saveBook() {
 }
 
 function deleteBook(id) {
-  if(!confirm("Delete this book? Active loans will be affected.")) return;
-  books = books.filter(b => b.id !== id);
-  save();
-  renderManageBooks();
+  showConfirm("Delete Book", "Are you sure you want to delete this book? Active loans will be affected.", () => {
+    books = books.filter(b => b.id !== id);
+    save();
+    renderManageBooks();
+  });
 }
 
 // ---- ADMIN: MANAGE USERS ----
@@ -995,10 +1020,11 @@ function saveUser() {
 }
 
 function deleteUser(id) {
-  if(!confirm("Delete this user account permanently?")) return;
-  users = users.filter(u => u.id !== id);
-  save();
-  renderManageUsers();
+  showConfirm("Delete Account", "Are you sure you want to permanently delete this user account?", () => {
+    users = users.filter(u => u.id !== id);
+    save();
+    renderManageUsers();
+  });
 }
 
 // ---- SUPPORT TICKETS & REPLIES ----
@@ -1006,7 +1032,6 @@ let currentTicketId = null;
 
 function renderTickets() {
   const isStudent = currentUser.role === 'Student';
-  
   const myTickets = isStudent ? tickets.filter(t => t.userId === currentUser.id) : tickets;
   
   $("noTickets").hidden = myTickets.length > 0;

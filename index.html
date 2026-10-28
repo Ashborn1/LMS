@@ -18,7 +18,6 @@
     <h2>Library Portal</h2>
     <p class="sub-text">Sign in to continue</p>
     
-    <!-- Wrapped in a form so Enter key works -->
     <form id="loginForm" style="display: flex; flex-direction: column; gap: 16px;">
       <input id="user" placeholder="Username" autocomplete="username" required>
       <input id="pass" type="password" placeholder="Password" autocomplete="current-password" required>
@@ -34,7 +33,6 @@
       Student: student / student123
     </div>
 
-    <!-- Guest Ticket Links -->
     <div class="auth-links" style="display: flex; flex-direction: column; gap: 8px;">
       <a href="#" onclick="openAuthTicketModal(event)">Forgot username or password?</a>
       <a href="#" onclick="openGuestTickets(event)" style="color: #64748b; font-size: 12px;">Track my submitted tickets</a>
@@ -61,6 +59,7 @@
   <main>
     <div class="tabs main-tabs">
       <button id="navCatalog" class="tab-btn" onclick="switchView('catalog')">📚 Catalog</button>
+      <button id="navMyRequests" class="tab-btn" onclick="switchView('my-requests')">📝 My Requests</button>
       <button id="navRequests" class="tab-btn" onclick="switchView('requests')">📥 Borrow Requests</button>
       <button id="navLoans" class="tab-btn" onclick="switchView('loans')">📖 Active Loans</button>
       <button id="navHistory" class="tab-btn" onclick="switchView('history')">🕘 History</button>
@@ -96,7 +95,21 @@
       <p id="noResults" class="no-results" hidden>No books found.</p>
     </section>
 
-    <!-- 2. BORROW REQUESTS VIEW -->
+    <!-- 1.5 MY REQUESTS VIEW (Student Only) -->
+    <section id="view-my-requests" hidden>
+      <h2 style="margin-bottom: 16px;">My Pending Requests</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Book</th><th>Date Requested</th><th>Notes</th><th>Status</th><th style="text-align: right;">Actions</th></tr>
+          </thead>
+          <tbody id="myRequestsBody"></tbody>
+        </table>
+        <p id="noMyRequests" class="no-results" style="padding: 32px; margin: 0;">You have no pending requests.</p>
+      </div>
+    </section>
+
+    <!-- 2. BORROW REQUESTS VIEW (Bookkeeper) -->
     <section id="view-requests" hidden>
       <h2 style="margin-bottom: 16px;">Pending Borrow Requests</h2>
       <div class="table-wrap">
@@ -207,7 +220,21 @@
 
 <!-- MODALS -->
 
-<!-- 0. Guest Auth Ticket Modal -->
+<!-- 0. CUSTOM CONFIRM MODAL -->
+<div id="confirmModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="confirmTitle">Are you sure?</h3>
+    </div>
+    <p id="confirmMessage" style="font-size: 14px; color: #475569; margin-bottom: 24px; line-height: 1.5;"></p>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('confirmModal').hidden = true">Cancel</button>
+      <button class="danger" id="confirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- 0.1 Guest Auth Ticket Modal -->
 <div id="authTicketModal" class="modal" hidden>
   <div class="modal-box">
     <div class="modal-head">
@@ -286,6 +313,25 @@
     <div class="modal-actions">
       <button class="ghost" onclick="$('requestModal').hidden = true">Cancel</button>
       <button onclick="submitRequest()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- 1.5 Student: Edit Request Modal -->
+<div id="editRequestModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Edit Request</h3>
+      <p class="modal-sub" id="erBookName"></p>
+    </div>
+    <div class="field full">
+      <label>Notes / Purpose</label>
+      <input id="erNotes" placeholder="Update your reason...">
+    </div>
+    <p id="erErr" class="err"></p>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('editRequestModal').hidden = true">Cancel</button>
+      <button onclick="saveEditRequest()">Save Changes</button>
     </div>
   </div>
 </div>
