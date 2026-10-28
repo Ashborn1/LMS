@@ -62,9 +62,11 @@ function getThemeClass(cat) {
 
 const borrowedCount = id => loans.filter(l => l.bookId === id).length;
 
-// ---- AUTHENTICATION ----
-$("loginBtn").onclick = () => {
+// ---- AUTHENTICATION (FORM SUBMIT) ----
+$("loginForm").onsubmit = (e) => {
+  e.preventDefault(); // Prevents page reload
   $("loginErr").textContent = "";
+  
   const u = $("user").value.trim();
   const p = $("pass").value;
   const found = users.find(x => x.username === u && x.password === p);
@@ -85,6 +87,42 @@ $("logout").onclick = () => {
   $("app").hidden = true;
 };
 
+// ---- GUEST TICKETS (From Login Page) ----
+function openAuthTicketModal(e) {
+  e.preventDefault();
+  $("authName").value = "";
+  $("authUser").value = "";
+  $("authDesc").value = "";
+  $("authErr").textContent = "";
+  $("authTicketModal").hidden = false;
+}
+
+function submitAuthTicket() {
+  const name = $("authName").value.trim();
+  const user = $("authUser").value.trim();
+  const desc = $("authDesc").value.trim();
+  
+  if (!name || !user || !desc) {
+    $("authErr").textContent = "Please fill in all fields.";
+    return;
+  }
+  
+  tickets.unshift({
+    id: Date.now(),
+    userId: "guest",
+    userName: name + " (Guest)",
+    subject: "Account Recovery: " + user,
+    desc: desc,
+    date: new Date().toISOString().slice(0, 10),
+    status: "Open",
+    replies: []
+  });
+  
+  save();
+  $("authTicketModal").hidden = true;
+  alert("Ticket sent! The Admin will review it soon.");
+}
+
 function showApp() {
   $("auth").hidden = true;
   $("app").hidden = false;
@@ -103,7 +141,7 @@ function showApp() {
   $("navUsers").hidden = !isAdmin;
   $("navTickets").hidden = isBookkeeper;
 
-  // HIDE NEW TICKET BUTTON FOR ADMIN
+  // Admin cannot create tickets
   $("btnNewTicket").style.display = isAdmin ? "none" : "block";
 
   if (isAdmin) switchView("users");
@@ -600,7 +638,6 @@ function renderHistory() {
   const isStudent = currentUser.role === 'Student';
   
   if (isStudent) {
-    // ONLY show this student's history and rejections
     const myHistory = history.filter(h => h.borrowerId === currentUser.id).map(h => ({...h, type: 'loan'}));
     const myRejections = rejections.filter(r => r.studentId === currentUser.id).map(r => ({...r, type: 'reject'}));
     
@@ -634,7 +671,6 @@ function renderHistory() {
     }).join("");
     
   } else {
-    // Admin/Bookkeeper sees ALL history and rejections
     const combinedHistory = [
       ...history.map(h => ({ ...h, itemType: 'loan' })),
       ...rejections.map(r => ({ ...r, itemType: 'rejection' }))
@@ -712,7 +748,6 @@ function renderManageBooks() {
     return matchSearch && matchCat;
   });
 
-  // Sort logic
   filtered.sort((a, b) => {
     if (sortBy === "title-asc") return a.title.localeCompare(b.title);
     if (sortBy === "title-desc") return b.title.localeCompare(a.title);
@@ -882,7 +917,6 @@ let currentTicketId = null;
 function renderTickets() {
   const isStudent = currentUser.role === 'Student';
   
-  // ONLY show this student's tickets
   const myTickets = isStudent ? tickets.filter(t => t.userId === currentUser.id) : tickets;
   
   $("noTickets").hidden = myTickets.length > 0;
@@ -890,7 +924,7 @@ function renderTickets() {
   $("ticketsBody").innerHTML = myTickets.map(t => `
     <tr>
       <td><strong>${t.subject}</strong></td>
-      <td>${t.date}</td>
+      <td>${t.userName}</td>
       <td>
         <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
           ${t.status}
@@ -911,7 +945,7 @@ function renderTickets() {
 }
 
 function toggleTicketStatus(id) {
-  if (currentUser.role === 'Student') return; // Students cannot close/reopen
+  if (currentUser.role === 'Student') return;
   
   const t = tickets.find(x => x.id === id);
   if (!t) return;
@@ -961,22 +995,21 @@ function viewTicket(id) {
   $("vtDesc").textContent = t.desc;
   $("replyText").value = "";
 
-  // Set Status Badge
   $("vtStatusBadge").innerHTML = `
     <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
       Status: ${t.status}
     </span>
   `;
 
-  // Render Replies
   const rContainer = $("ticketReplies");
   if (!t.replies || t.replies.length === 0) {
     rContainer.innerHTML = `<p style="font-size: 13px; color: #94a3b8; font-style: italic; text-align: center;">No replies yet.</p>`;
   } else {
     rContainer.innerHTML = t.replies.map(r => {
-      const isAdmin = r.sender === 'Admin' || r.sender === 'Bookkeeper';
+      // Check if sender is admin to style bubble
+      const isAdminReply = r.sender === 'Admin' || r.sender === 'Bookkeeper';
       return `
-        <div class="reply-bubble ${isAdmin ? 'admin' : 'student'}">
+        <div class="reply-bubble ${isAdminReply ? 'admin' : 'student'}">
           <strong>${r.sender}:</strong> ${r.text}
           <div class="reply-meta">${r.date}</div>
         </div>
@@ -984,7 +1017,6 @@ function viewTicket(id) {
     }).join("");
   }
 
-  // Toggle Chat Input vs Closed Message
   if (t.status === 'Open') {
     $("replyArea").style.display = "flex";
     $("resolvedMessage").style.display = "none";
@@ -1012,8 +1044,8 @@ function submitReply() {
   });
   
   save();
-  viewTicket(currentTicketId); // Re-render modal
-  renderTickets(); // Update table
+  viewTicket(currentTicketId); 
+  renderTickets(); 
 }
 
 // ---- INIT ----
