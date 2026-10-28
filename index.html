@@ -4,77 +4,511 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Library Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <!-- LOGIN -->
 <div id="auth">
-  <div class="card">
-    <h2>📚 Library Login</h2>
-    <input id="user" placeholder="Username (admin)">
-    <input id="pass" type="password" placeholder="Password (admin123)">
+  <div class="card login-card">
+    <div class="login-icon">📚</div>
+    <h2>Library Portal</h2>
+    <p class="sub-text">Sign in to continue</p>
+    <input id="user" placeholder="Username">
+    <input id="pass" type="password" placeholder="Password">
     <button id="loginBtn">Sign in</button>
     <p id="loginErr" class="err"></p>
+    
+    <div style="margin-top: 16px; font-size: 12px; color: #64748b; text-align: center; line-height: 1.5;">
+      <strong>Demo Accounts:</strong><br>
+      Admin: admin / admin123<br>
+      Bookkeeper: keeper / keeper123<br>
+      Student: student / student123
+    </div>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app" hidden>
   <header>
-    <h1>📚 Library Management System</h1>
-    <div>
-      <span id="who"></span>
-      <button id="logout">Log out</button>
+    <div class="logo-area">
+      <span class="logo-icon">📚</span>
+      <h1>Library System</h1>
+    </div>
+    <div class="user-area">
+      <div class="user-info">
+        <span id="whoName" style="font-weight: 700; color: #0f172a;"></span>
+        <span id="whoRole" style="font-size: 12px; color: #64748b;"></span>
+      </div>
+      <button id="logout" class="ghost danger">Log out</button>
     </div>
   </header>
 
   <main>
-    <!-- Filter / Search bar -->
-    <div class="toolbar">
-      <input id="search" placeholder="🔍 Search title or category…">
-      <select id="catFilter">
-        <option value="all">All Categories</option>
-        <option value="IT">IT</option>
-        <option value="Science">Science</option>
-        <option value="English">English</option>
-        <option value="Social Studies">Social Studies</option>
-      </select>
-      <select id="sortBy">
-        <option value="title-asc">Title (A–Z)</option>
-        <option value="title-desc">Title (Z–A)</option>
-        <option value="avail-desc">Most Available</option>
-        <option value="avail-asc">Least Available</option>
-      </select>
-      <select id="availFilter">
-        <option value="all">All Books</option>
-        <option value="available">Available Only</option>
-        <option value="out">Fully Borrowed</option>
-      </select>
+    <div class="tabs main-tabs">
+      <button id="navCatalog" class="tab-btn" onclick="switchView('catalog')">📚 Catalog</button>
+      <button id="navRequests" class="tab-btn" onclick="switchView('requests')">📥 Borrow Requests</button>
+      <button id="navLoans" class="tab-btn" onclick="switchView('loans')">📖 Active Loans</button>
+      <button id="navHistory" class="tab-btn" onclick="switchView('history')">🕘 History</button>
+      <button id="navBooks" class="tab-btn" onclick="switchView('books')">⚙️ Manage Books</button>
+      <button id="navUsers" class="tab-btn" onclick="switchView('users')">👥 Accounts</button>
+      <button id="navTickets" class="tab-btn" onclick="switchView('tickets')">🎫 Support Tickets</button>
     </div>
 
-    <div id="books" class="grid"></div>
-    <p id="noResults" class="no-results" hidden>No books match your search.</p>
+    <!-- 1. CATALOG VIEW -->
+    <section id="view-catalog" hidden>
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input id="search" placeholder="Search by title, author, or description…">
+        </div>
+        <select id="catFilter">
+          <option value="all">All Categories</option>
+          <option value="IT">IT</option>
+          <option value="Science">Science</option>
+          <option value="English">English</option>
+          <option value="Social Studies">Social Studies</option>
+        </select>
+        <select id="sortCatalog">
+          <option value="title-asc">Title (A–Z)</option>
+          <option value="title-desc">Title (Z–A)</option>
+          <option value="author-asc">Author (A–Z)</option>
+          <option value="author-desc">Author (Z–A)</option>
+          <option value="date-new">Newest Published</option>
+          <option value="date-old">Oldest Published</option>
+        </select>
+      </div>
+      <div id="books" class="grid"></div>
+      <p id="noResults" class="no-results" hidden>No books found.</p>
+    </section>
 
-    <h2>Active Loans</h2>
-    <table id="loansTable">
-      <thead><tr><th>Book</th><th>Borrower</th><th>Due</th><th></th></tr></thead>
-      <tbody id="loansBody"></tbody>
-    </table>
-    <p id="noLoans">No active loans.</p>
+    <!-- 2. BORROW REQUESTS VIEW -->
+    <section id="view-requests" hidden>
+      <h2 style="margin-bottom: 16px;">Pending Borrow Requests</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Book</th><th>Student</th><th>Date Requested</th><th style="text-align: right;">Actions</th></tr>
+          </thead>
+          <tbody id="requestsBody"></tbody>
+        </table>
+        <p id="noRequests" class="no-results" style="padding: 32px; margin: 0;">No pending requests.</p>
+      </div>
+    </section>
+
+    <!-- 3. LOANS VIEW -->
+    <section id="view-loans" hidden>
+      <h2 style="margin-bottom: 16px;">Active Loans</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Book</th><th>Borrower</th><th>Due Date</th><th style="text-align: right;">Actions</th></tr>
+          </thead>
+          <tbody id="loansBody"></tbody>
+        </table>
+        <p id="noLoans" class="no-results" style="padding: 32px; margin: 0;">No active loans.</p>
+      </div>
+    </section>
+
+    <!-- 4. HISTORY VIEW -->
+    <section id="view-history" hidden>
+      <h2 style="margin-bottom: 16px;">History</h2>
+      <div class="table-wrap">
+        <table id="historyTable">
+          <thead id="historyHead"></thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+        <p id="noHistory" class="no-results" style="padding: 32px; margin: 0;">No history found.</p>
+      </div>
+    </section>
+
+    <!-- 5. MANAGE BOOKS VIEW -->
+    <section id="view-books" hidden>
+      <div class="section-head" style="margin-top: 0;">
+        <h2>Manage Books</h2>
+        <div class="admin-actions">
+          <input type="search" id="adminBookSearch" class="admin-search" placeholder="🔍 Search inventory…" style="padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;">
+          <select id="adminCatFilter" style="padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;">
+            <option value="all">All Categories</option>
+            <option value="IT">IT</option>
+            <option value="Science">Science</option>
+            <option value="English">English</option>
+            <option value="Social Studies">Social Studies</option>
+          </select>
+          <select id="sortAdminBooks" style="padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff;">
+            <option value="title-asc">Title (A–Z)</option>
+            <option value="title-desc">Title (Z–A)</option>
+            <option value="author-asc">Author (A–Z)</option>
+            <option value="author-desc">Author (Z–A)</option>
+            <option value="date-new">Newest Published</option>
+            <option value="date-old">Oldest Published</option>
+          </select>
+          <button class="small" onclick="openBookForm()">+ Add New Book</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Title</th><th>Category</th><th>Copies</th><th style="text-align: right;">Actions</th></tr>
+          </thead>
+          <tbody id="manageBooksBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 6. MANAGE USERS VIEW -->
+    <section id="view-users" hidden>
+      <div class="section-head" style="margin-top: 0;">
+        <h2>Account Management</h2>
+        <button class="small" onclick="openUserForm()">+ Add Account</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Username</th><th>Role</th><th style="text-align: right;">Actions</th></tr>
+          </thead>
+          <tbody id="manageUsersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7. SUPPORT TICKETS VIEW -->
+    <section id="view-tickets" hidden>
+      <div class="section-head" style="margin-top: 0;">
+        <h2>Maintenance & Support</h2>
+        <button class="small" id="btnNewTicket" onclick="openTicketForm()">+ New Ticket</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Subject</th><th>Date</th><th>Status</th><th style="text-align: right;">Actions</th></tr>
+          </thead>
+          <tbody id="ticketsBody"></tbody>
+        </table>
+        <p id="noTickets" class="no-results" style="padding: 32px; margin: 0;">No tickets found.</p>
+      </div>
+    </section>
   </main>
 </div>
 
-<!-- BORROW MODAL -->
-<div id="modal" class="modal" hidden>
+<!-- MODALS -->
+
+<!-- 1. Student: Request Borrow Modal -->
+<div id="requestModal" class="modal" hidden>
   <div class="modal-box">
-    <h3>Borrow Book</h3>
-    <input id="borrowerName" placeholder="Borrower name">
-    <input id="dueDate" type="date">
-    <p id="modalErr" class="err"></p>
-    <div>
-      <button id="cancelBorrow">Cancel</button>
-      <button id="confirmBorrow">Confirm</button>
+    <div class="modal-head">
+      <h3>Request to Borrow</h3>
+      <p class="modal-sub" id="reqBookName"></p>
+    </div>
+    <div class="form-grid">
+      <div class="field full">
+        <label>Full Name</label>
+        <input id="reqName" disabled style="background:#e2e8f0;">
+      </div>
+      <div class="field">
+        <label>Student ID</label>
+        <input id="reqStudentId" disabled style="background:#e2e8f0;">
+      </div>
+      <div class="field">
+        <label>Section / Dept</label>
+        <input id="reqSection" disabled style="background:#e2e8f0;">
+      </div>
+      <div class="field full">
+        <label>Contact / Email</label>
+        <input id="reqContact" placeholder="Optional">
+      </div>
+      <div class="field full">
+        <label>Notes / Purpose</label>
+        <input id="reqNotes" placeholder="E.g., For thesis research...">
+      </div>
+    </div>
+    <p id="reqErr" class="err"></p>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('requestModal').hidden = true">Cancel</button>
+      <button onclick="submitRequest()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Bookkeeper: View Request Modal -->
+<div id="viewRequestModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Request Details</h3>
+      <p class="modal-sub" id="vrBookName"></p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-row"><span class="detail-label">Student Name</span><span id="vrName" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Student ID</span><span id="vrStudentId" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Section</span><span id="vrSection" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Contact</span><span id="vrContact" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Purpose / Notes</span><span id="vrNotes" class="detail-val" style="font-style: italic; font-weight: 400;"></span></div>
+      <div class="detail-row"><span class="detail-label">Date Requested</span><span id="vrDate" class="detail-val"></span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('viewRequestModal').hidden = true">Close</button>
+      <button class="ghost danger" onclick="promptReject()">Reject</button>
+      <button onclick="promptApprove()">Accept Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Bookkeeper: Approve Due Date Modal -->
+<div id="approveModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Approve Request</h3>
+      <p class="modal-sub" id="appBookName"></p>
+    </div>
+    <div class="field">
+      <label>Set Due Date *</label>
+      <input id="appDueDate" type="date">
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('approveModal').hidden = true; $('viewRequestModal').hidden = false;">Cancel</button>
+      <button onclick="approveRequest()">Confirm & Issue Book</button>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Bookkeeper: Reject Reason Modal -->
+<div id="rejectModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Reject Request</h3>
+      <p class="modal-sub">Please provide a reason for rejection.</p>
+    </div>
+    <div class="field">
+      <label>Reason for Rejection *</label>
+      <input id="rejectReason" placeholder="E.g., Book is reserved for another class...">
+    </div>
+    <p id="rejErr" class="err"></p>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('rejectModal').hidden = true; $('viewRequestModal').hidden = false;">Cancel</button>
+      <button class="danger" onclick="submitReject()">Confirm Reject</button>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Student: Request Extension Modal -->
+<div id="extendReqModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Request Extension</h3>
+      <p class="modal-sub" id="extReqBookName"></p>
+    </div>
+    <div class="field">
+      <label>Reason for Extension *</label>
+      <input id="extReason" placeholder="E.g., Still working on the project...">
+    </div>
+    <p id="extErr" class="err"></p>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('extendReqModal').hidden = true">Cancel</button>
+      <button onclick="submitExtensionRequest()">Send Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- 6. Bookkeeper: Approve Extension Modal -->
+<div id="extendAppModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Approve Extension</h3>
+      <p class="modal-sub" id="extAppBookName"></p>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">
+      <label>Student's Reason</label>
+      <p id="extAppReason" style="margin: 0; padding: 12px; background: #f8fafc; border-radius: 8px; font-weight: 600; color: #475569;"></p>
+    </div>
+    <div class="field">
+      <label>New Due Date *</label>
+      <input id="extAppNewDate" type="date">
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('extendAppModal').hidden = true">Cancel</button>
+      <button onclick="approveExtension()">Approve Extension</button>
+    </div>
+  </div>
+</div>
+
+<!-- 7. View Loan Details Modal -->
+<div id="loanDetailsModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Loan Details</h3>
+      <p class="modal-sub" id="ldBookName"></p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-row"><span class="detail-label">Borrower</span><span id="ldName" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Status</span><span id="ldStatus" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Due Date</span><span id="ldDueDate" class="detail-val"></span></div>
+      <div class="detail-row" id="ldReturnRow" style="display:none"><span class="detail-label">Returned On</span><span id="ldReturnDate" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Notes</span><span id="ldNotes" class="detail-val" style="font-style: italic; font-weight: 400;"></span></div>
+    </div>
+    <div id="ldExtensionsArea" style="display:none; margin-top: 16px;">
+      <h4 style="margin: 0 0 8px; font-size: 13px; color: #475569; text-transform: uppercase;">Extension History</h4>
+      <div id="ldExtensionsList" style="background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 13px; display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('loanDetailsModal').hidden = true">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- 8. View Rejection Details Modal -->
+<div id="viewRejectionModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Rejected Request Details</h3>
+      <p class="modal-sub" id="rjBookName"></p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-row"><span class="detail-label">Student Name</span><span id="rjName" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Student ID</span><span id="rjStudentId" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Section</span><span id="rjSection" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Date Requested</span><span id="rjDate" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Rejected On</span><span id="rjDateProcessed" class="detail-val"></span></div>
+      <div class="detail-row" style="flex-direction: column; gap: 8px; align-items: flex-start; border-bottom: none;">
+        <span class="detail-label">Reason for Rejection</span>
+        <span id="rjReason" style="color: #ef4444; font-weight: 600; font-size: 15px; text-align: left;"></span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('viewRejectionModal').hidden = true">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- 9. Bookkeeper: Direct Extend Modal -->
+<div id="extendLoanModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Extend Due Date</h3>
+      <p class="modal-sub" id="elBookName"></p>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">
+      <label>New Due Date *</label>
+      <input id="elNewDate" type="date">
+    </div>
+    <div class="field">
+      <label>Reason for Extension *</label>
+      <input id="elReason" placeholder="E.g., Student requested more time...">
+    </div>
+    <p id="elErr" class="err"></p>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('extendLoanModal').hidden = true">Cancel</button>
+      <button onclick="saveExtendLoan()">Confirm Extend</button>
+    </div>
+  </div>
+</div>
+
+<!-- 10. Book Info Modal -->
+<div id="bookInfoModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head" style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px;">
+      <div id="biCover" class="book-cover-large">📘</div>
+      <div>
+        <h3 id="biTitle" style="margin-bottom: 8px;"></h3>
+        <span id="biCategory" class="cat"></span>
+      </div>
+    </div>
+    <div class="detail-grid" style="background: #fff; padding: 0; border: none;">
+      <div class="detail-row"><span class="detail-label">Author</span><span id="biAuthor" class="detail-val" style="font-weight: 700;"></span></div>
+      <div class="detail-row"><span class="detail-label">Published</span><span id="biPublished" class="detail-val"></span></div>
+      <div class="detail-row"><span class="detail-label">Total Copies</span><span id="biCopies" class="detail-val"></span></div>
+    </div>
+    <div style="margin-top: 16px;">
+      <h4 style="margin: 0 0 8px; font-size: 13px; color: #475569; text-transform: uppercase;">Summary</h4>
+      <p id="biSummary" style="margin: 0; font-size: 14px; line-height: 1.6; color: #334155; background: #f8fafc; padding: 16px; border-radius: 12px;"></p>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('bookInfoModal').hidden = true">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- 11. Form Modal for Books -->
+<div id="bookFormModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="bookFormTitle">Add Book</h3></div>
+    <input type="hidden" id="bfId">
+    <div class="form-grid">
+      <div class="field full"><label>Title</label><input id="bfTitle"></div>
+      <div class="field"><label>Category</label>
+        <select id="bfCategory"><option>IT</option><option>Science</option><option>English</option><option>Social Studies</option></select>
+      </div>
+      <div class="field"><label>Copies</label><input id="bfCopies" type="number" min="1" value="1"></div>
+      <div class="field"><label>Author</label><input id="bfAuthor"></div>
+      <div class="field"><label>Published Year</label><input id="bfPublished" placeholder="e.g. 2023"></div>
+      <div class="field full"><label>Icon (Emoji)</label><input id="bfIcon" value="📘"></div>
+      <div class="field full"><label>Summary</label><textarea id="bfSummary" rows="3" style="width: 100%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; font-family: inherit;"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('bookFormModal').hidden = true">Cancel</button>
+      <button onclick="saveBook()">Save Book</button>
+    </div>
+  </div>
+</div>
+
+<!-- 12. Form Modal for Users -->
+<div id="userFormModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="userFormTitle">Add User</h3></div>
+    <input type="hidden" id="ufId">
+    <div class="form-grid">
+      <div class="field full"><label>Full Name</label><input id="ufName"></div>
+      <div class="field"><label>Username</label><input id="ufUsername"></div>
+      <div class="field"><label>Password</label><input id="ufPassword"></div>
+      <div class="field full"><label>Role</label>
+        <select id="ufRole">
+          <option value="Student">Student</option>
+          <option value="Bookkeeper">Bookkeeper</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      <div class="field full" id="ufStudentFields" style="display: flex; gap: 16px; flex-direction: row;">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+          <label>Student ID</label>
+          <input id="ufStudentNum" placeholder="e.g. 2024-00123">
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+          <label>Section</label>
+          <input id="ufSection" placeholder="e.g. BSIT 2-A">
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('userFormModal').hidden = true">Cancel</button>
+      <button onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- 13. Ticket Form Modal -->
+<div id="ticketFormModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head"><h3>Submit Support Ticket</h3></div>
+    <div class="field"><label>Subject</label><input id="tSubject" placeholder="E.g., Cannot log in"></div>
+    <div class="field" style="margin-top: 12px;"><label>Description</label><input id="tDesc" placeholder="Describe the issue..."></div>
+    <p id="tErr" class="err"></p>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('ticketFormModal').hidden = true">Cancel</button>
+      <button onclick="submitTicket()">Submit Ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- 14. View Ticket Modal -->
+<div id="viewTicketModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-head"><h3 id="vtSubject"></h3></div>
+    <p style="margin-top: 0; font-size: 13px; color: #64748b;">From: <span id="vtUser" style="font-weight: 600;"></span> on <span id="vtDate"></span></p>
+    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; font-size: 14px; color: #334155; margin-bottom: 20px;" id="vtDesc"></div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="$('viewTicketModal').hidden = true">Close</button>
     </div>
   </div>
 </div>
