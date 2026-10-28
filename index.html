@@ -176,7 +176,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Title</th><th>Category</th><th>Copies</th><th style="text-align: right;">Actions</th></tr>
+            <tr><th>Title</th><th>Category</th><th>Total Copies</th><th>Borrowed</th><th style="text-align: right;">Actions</th></tr>
           </thead>
           <tbody id="manageBooksBody"></tbody>
         </table>
@@ -543,12 +543,20 @@
       <div class="field"><label>Category</label>
         <select id="bfCategory"><option>IT</option><option>Science</option><option>English</option><option>Social Studies</option></select>
       </div>
-      <div class="field"><label>Copies</label><input id="bfCopies" type="number" min="1" value="1"></div>
+      <div class="field">
+        <label id="bfCopiesLabel">Copies</label>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button type="button" class="ghost" style="padding: 8px 12px; font-weight: bold;" onclick="adjustCopies(-1)">-</button>
+          <input id="bfCopies" type="number" readonly style="text-align: center; width: 80px; padding: 10px; pointer-events: none;" value="1">
+          <button type="button" class="ghost" style="padding: 8px 12px; font-weight: bold;" onclick="adjustCopies(1)">+</button>
+        </div>
+      </div>
       <div class="field"><label>Author</label><input id="bfAuthor"></div>
       <div class="field"><label>Published Year</label><input id="bfPublished" placeholder="e.g. 2023"></div>
       <div class="field full"><label>Icon (Emoji)</label><input id="bfIcon" value="📘"></div>
       <div class="field full"><label>Summary</label><textarea id="bfSummary" rows="3" style="width: 100%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; font-family: inherit;"></textarea></div>
     </div>
+    <p id="bfError" class="err" style="margin-bottom: 0;"></p>
     <div class="modal-actions">
       <button class="ghost" onclick="$('bookFormModal').hidden = true">Cancel</button>
       <button onclick="saveBook()">Save Book</button>

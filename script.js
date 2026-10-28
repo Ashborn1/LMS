@@ -68,7 +68,6 @@ function showConfirm(title, message, onConfirm) {
   $("confirmMessage").textContent = message;
   
   const btn = $("confirmBtn");
-  // Remove old listeners by cloning
   const newBtn = btn.cloneNode(true);
   btn.parentNode.replaceChild(newBtn, btn);
   
@@ -404,7 +403,7 @@ function cancelRequest(reqId) {
     requests = requests.filter(r => r.id !== reqId);
     save();
     renderMyRequests();
-    renderCatalog(); // Refresh catalog to re-enable Request button
+    renderCatalog(); 
   });
 }
 
@@ -872,11 +871,14 @@ function renderManageBooks() {
     return 0;
   });
 
-  $("manageBooksBody").innerHTML = filtered.map(b => `
+  $("manageBooksBody").innerHTML = filtered.map(b => {
+    const borrowed = borrowedCount(b.id);
+    return `
     <tr>
       <td><strong>${b.title}</strong></td>
       <td>${b.cat}</td>
       <td>${b.copies}</td>
+      <td><span style="font-weight: 600; color: ${borrowed > 0 ? '#ef4444' : '#64748b'};">${borrowed}</span></td>
       <td>
         <div class="actions-cell">
           <button class="ghost small" onclick="openBookForm(${b.id})">Edit</button>
@@ -884,21 +886,46 @@ function renderManageBooks() {
         </div>
       </td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 }
 
 $("adminBookSearch").oninput = renderManageBooks;
 $("adminCatFilter").onchange = renderManageBooks;
 $("sortAdminBooks").onchange = renderManageBooks;
 
+function adjustCopies(amount) {
+  const input = $("bfCopies");
+  let currentVal = parseInt(input.value) || 1;
+  let newVal = currentVal + amount;
+  
+  if (newVal < 1) newVal = 1; // Minimum 1 copy total
+  
+  const id = $("bfId").value;
+  if (id) {
+    const b = books.find(x => x.id == id);
+    const borrowed = borrowedCount(b.id);
+    
+    if (newVal < borrowed) {
+      newVal = borrowed; // Cap at borrowed limit
+      $("bfError").textContent = `Cannot reduce stock below ${borrowed} because there are active loans.`;
+      setTimeout(() => { $("bfError").textContent = ""; }, 3000);
+    }
+  }
+  
+  input.value = newVal;
+}
+
 function openBookForm(id = null) {
   $("bfId").value = id || "";
   $("bookFormTitle").textContent = id ? "Edit Book" : "Add New Book";
+  $("bfError").textContent = ""; // Clear errors
   
   if (id) {
     const b = books.find(x => x.id === id);
     $("bfTitle").value = b.title;
     $("bfCategory").value = b.cat;
+    $("bfCopiesLabel").textContent = `Copies (Currently ${borrowedCount(b.id)} borrowed)`;
     $("bfCopies").value = b.copies;
     $("bfAuthor").value = b.author || "";
     $("bfPublished").value = b.published || "";
@@ -907,6 +934,7 @@ function openBookForm(id = null) {
   } else {
     $("bfTitle").value = "";
     $("bfCategory").value = "IT";
+    $("bfCopiesLabel").textContent = "Initial Copies";
     $("bfCopies").value = 1;
     $("bfAuthor").value = "";
     $("bfPublished").value = new Date().getFullYear();
@@ -926,16 +954,27 @@ function saveBook() {
   const icon = $("bfIcon").value;
   const summary = $("bfSummary").value;
 
-  if (!title) return alert("Title is required");
+  if (!title) {
+    $("bfError").textContent = "Title is required.";
+    return;
+  }
 
   if (id) {
     const b = books.find(x => x.id == id);
+    const borrowed = borrowedCount(b.id);
+    
+    if (copies < borrowed) {
+      $("bfError").textContent = `Cannot reduce total copies below ${borrowed} because there are active loans.`;
+      return;
+    }
+
     b.title = title; b.cat = cat; b.copies = copies; b.author = author; b.published = published; b.icon = icon; b.summary = summary;
   } else {
     books.push({
       id: Date.now(), title, cat, copies, author, published, icon, summary
     });
   }
+  
   save();
   $("bookFormModal").hidden = true;
   renderManageBooks();
