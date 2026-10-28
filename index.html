@@ -522,9 +522,15 @@
       <!-- Chat bubbles injected here -->
     </div>
 
-    <div style="display: flex; gap: 8px; margin-top: 16px;">
+    <!-- Chat Input Area (Only shows if open) -->
+    <div id="replyArea" style="display: flex; gap: 8px; margin-top: 16px;">
       <input id="replyText" placeholder="Type your reply..." style="flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1;">
       <button onclick="submitReply()">Send</button>
+    </div>
+
+    <!-- Closed Message Area (Only shows if closed) -->
+    <div id="resolvedMessage" style="display: none; margin-top: 16px; padding: 12px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; text-align: center; color: #64748b; font-size: 14px; font-weight: 500;">
+      This ticket is resolved. Reopen it to chat.
     </div>
 
     <div class="modal-actions" style="margin-top: 24px;">

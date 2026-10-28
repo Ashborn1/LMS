@@ -357,22 +357,26 @@ function submitReject() {
 
 // ---- LOANS & EXTENSIONS ----
 function renderLoans() {
-  $("noLoans").hidden = loans.length > 0;
   const isStudent = currentUser.role === 'Student';
+  
+  // FILTER: Students only see their own loans
+  const visibleLoans = isStudent 
+    ? loans.filter(l => l.borrowerId === currentUser.id) 
+    : loans;
 
-  $("loansBody").innerHTML = loans.map(l => {
+  $("noLoans").hidden = visibleLoans.length > 0;
+
+  $("loansBody").innerHTML = visibleLoans.map(l => {
     const book = books.find(b => b.id === l.bookId);
     const hasPendingExt = extensionRequests.find(r => r.loanId === l.id);
     
     let actions = `<button class="ghost small" onclick="viewLoanDetails(${l.id}, false)">View</button>`;
     
     if (isStudent) {
-      if (l.borrowerId === currentUser.id) {
-        if (hasPendingExt) {
-          actions += `<span style="font-size: 12px; color: #b45309; font-weight: 600; margin-left: 8px;">Ext. Pending</span>`;
-        } else {
-          actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendRequest(${l.id})">Request Extend</button>`;
-        }
+      if (hasPendingExt) {
+        actions += `<span style="font-size: 12px; color: #b45309; font-weight: 600; margin-left: 8px;">Ext. Pending</span>`;
+      } else {
+        actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendRequest(${l.id})">Request Extend</button>`;
       }
     } else {
       actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendLoan(${l.id})">Extend</button>`;
@@ -593,6 +597,7 @@ function renderHistory() {
   const isStudent = currentUser.role === 'Student';
   
   if (isStudent) {
+    // ONLY show this student's history and rejections
     const myHistory = history.filter(h => h.borrowerId === currentUser.id).map(h => ({...h, type: 'loan'}));
     const myRejections = rejections.filter(r => r.studentId === currentUser.id).map(r => ({...r, type: 'reject'}));
     
@@ -626,7 +631,7 @@ function renderHistory() {
     }).join("");
     
   } else {
-    // Combine history and rejections for Admin/Bookkeeper
+    // Admin/Bookkeeper sees ALL history and rejections
     const combinedHistory = [
       ...history.map(h => ({ ...h, itemType: 'loan' })),
       ...rejections.map(r => ({ ...r, itemType: 'rejection' }))
@@ -873,6 +878,8 @@ let currentTicketId = null;
 
 function renderTickets() {
   const isStudent = currentUser.role === 'Student';
+  
+  // ONLY show this student's tickets
   const myTickets = isStudent ? tickets.filter(t => t.userId === currentUser.id) : tickets;
   
   $("noTickets").hidden = myTickets.length > 0;
@@ -888,9 +895,11 @@ function renderTickets() {
       </td>
       <td>
         <div class="actions-cell">
-          <button class="ghost small" onclick="toggleTicketStatus(${t.id})">
-            ${t.status === 'Open' ? 'Close Chat' : 'Reopen Chat'}
-          </button>
+          ${!isStudent ? `
+            <button class="ghost small" onclick="toggleTicketStatus(${t.id})">
+              ${t.status === 'Open' ? 'Close Chat' : 'Reopen Chat'}
+            </button>
+          ` : ''}
           <button class="ghost small" onclick="viewTicket(${t.id})">View / Reply</button>
         </div>
       </td>
@@ -899,6 +908,8 @@ function renderTickets() {
 }
 
 function toggleTicketStatus(id) {
+  if (currentUser.role === 'Student') return; // Students cannot close/reopen
+  
   const t = tickets.find(x => x.id === id);
   if (!t) return;
   
@@ -970,6 +981,15 @@ function viewTicket(id) {
     }).join("");
   }
 
+  // Toggle Chat Input vs Closed Message
+  if (t.status === 'Open') {
+    $("replyArea").style.display = "flex";
+    $("resolvedMessage").style.display = "none";
+  } else {
+    $("replyArea").style.display = "none";
+    $("resolvedMessage").style.display = "block";
+  }
+
   $("viewTicketModal").hidden = false;
 }
 
@@ -987,9 +1007,6 @@ function submitReply() {
     text: text,
     date: new Date().toLocaleString()
   });
-  
-  // Auto-reopen if closed
-  t.status = "Open";
   
   save();
   viewTicket(currentTicketId); // Re-render modal
