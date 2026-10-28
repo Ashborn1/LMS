@@ -103,6 +103,9 @@ function showApp() {
   $("navUsers").hidden = !isAdmin;
   $("navTickets").hidden = isBookkeeper;
 
+  // HIDE NEW TICKET BUTTON FOR ADMIN
+  $("btnNewTicket").style.display = isAdmin ? "none" : "block";
+
   if (isAdmin) switchView("users");
   else if (isBookkeeper) switchView("requests");
   else switchView("catalog");
