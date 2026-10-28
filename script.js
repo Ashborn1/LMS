@@ -98,7 +98,7 @@ function showApp() {
   $("navCatalog").hidden = isAdmin;
   $("navRequests").hidden = !isBookkeeper;
   $("navLoans").hidden = isAdmin;
-  $("navHistory").hidden = isAdmin; // Students can see history
+  $("navHistory").hidden = isAdmin;
   $("navBooks").hidden = !isBookkeeper;
   $("navUsers").hidden = !isAdmin;
   $("navTickets").hidden = isBookkeeper;
@@ -868,7 +868,9 @@ function deleteUser(id) {
   renderManageUsers();
 }
 
-// ---- SUPPORT TICKETS ----
+// ---- SUPPORT TICKETS & REPLIES ----
+let currentTicketId = null;
+
 function renderTickets() {
   const isStudent = currentUser.role === 'Student';
   const myTickets = isStudent ? tickets.filter(t => t.userId === currentUser.id) : tickets;
@@ -886,12 +888,23 @@ function renderTickets() {
       </td>
       <td>
         <div class="actions-cell">
-          <button class="ghost small" onclick="viewTicket(${t.id})">View</button>
-          ${!isStudent && t.status === 'Open' ? `<button class="small" onclick="resolveTicket(${t.id})">Resolve</button>` : ''}
+          <button class="ghost small" onclick="toggleTicketStatus(${t.id})">
+            ${t.status === 'Open' ? 'Close Chat' : 'Reopen Chat'}
+          </button>
+          <button class="ghost small" onclick="viewTicket(${t.id})">View / Reply</button>
         </div>
       </td>
     </tr>
   `).join("");
+}
+
+function toggleTicketStatus(id) {
+  const t = tickets.find(x => x.id === id);
+  if (!t) return;
+  
+  t.status = (t.status === 'Open') ? 'Resolved' : 'Open';
+  save();
+  renderTickets();
 }
 
 function openTicketForm() {
@@ -916,7 +929,8 @@ function submitTicket() {
     subject: subject,
     desc: desc,
     date: new Date().toISOString().slice(0, 10),
-    status: "Open"
+    status: "Open",
+    replies: []
   });
   save();
   $("ticketFormModal").hidden = true;
@@ -924,19 +938,62 @@ function submitTicket() {
 }
 
 function viewTicket(id) {
+  currentTicketId = id;
   const t = tickets.find(x => x.id === id);
+  
   $("vtSubject").textContent = t.subject;
   $("vtUser").textContent = t.userName;
   $("vtDate").textContent = t.date;
   $("vtDesc").textContent = t.desc;
+  $("replyText").value = "";
+
+  // Set Status Badge
+  $("vtStatusBadge").innerHTML = `
+    <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+      Status: ${t.status}
+    </span>
+  `;
+
+  // Render Replies
+  const rContainer = $("ticketReplies");
+  if (!t.replies || t.replies.length === 0) {
+    rContainer.innerHTML = `<p style="font-size: 13px; color: #94a3b8; font-style: italic; text-align: center;">No replies yet.</p>`;
+  } else {
+    rContainer.innerHTML = t.replies.map(r => {
+      const isAdmin = r.sender === 'Admin' || r.sender === 'Bookkeeper';
+      return `
+        <div class="reply-bubble ${isAdmin ? 'admin' : 'student'}">
+          <strong>${r.sender}:</strong> ${r.text}
+          <div class="reply-meta">${r.date}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
   $("viewTicketModal").hidden = false;
 }
 
-function resolveTicket(id) {
-  const t = tickets.find(x => x.id === id);
-  t.status = "Resolved";
+function submitReply() {
+  const text = $("replyText").value.trim();
+  if (!text) return;
+  
+  const t = tickets.find(x => x.id === currentTicketId);
+  if (!t) return;
+  
+  if (!t.replies) t.replies = [];
+  
+  t.replies.push({
+    sender: currentUser.role,
+    text: text,
+    date: new Date().toLocaleString()
+  });
+  
+  // Auto-reopen if closed
+  t.status = "Open";
+  
   save();
-  renderTickets();
+  viewTicket(currentTicketId); // Re-render modal
+  renderTickets(); // Update table
 }
 
 // ---- INIT ----

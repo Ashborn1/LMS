@@ -178,7 +178,7 @@
     <!-- 7. SUPPORT TICKETS VIEW -->
     <section id="view-tickets" hidden>
       <div class="section-head" style="margin-top: 0;">
-        <h2>Maintenance & Support</h2>
+        <h2>Support Tickets</h2>
         <button class="small" id="btnNewTicket" onclick="openTicketForm()">+ New Ticket</button>
       </div>
       <div class="table-wrap">
@@ -501,13 +501,33 @@
   </div>
 </div>
 
-<!-- 14. View Ticket Modal -->
+<!-- 14. View / Reply Ticket Modal -->
 <div id="viewTicketModal" class="modal" hidden>
-  <div class="modal-box">
-    <div class="modal-head"><h3 id="vtSubject"></h3></div>
-    <p style="margin-top: 0; font-size: 13px; color: #64748b;">From: <span id="vtUser" style="font-weight: 600;"></span> on <span id="vtDate"></span></p>
-    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; font-size: 14px; color: #334155; margin-bottom: 20px;" id="vtDesc"></div>
-    <div class="modal-actions">
+  <div class="modal-box" style="max-width: 600px;">
+    <div class="modal-head">
+      <h3 id="vtSubject"></h3>
+      <p style="margin-top: 4px; font-size: 13px; color: #64748b;">
+        From: <span id="vtUser" style="font-weight: 600;"></span> on <span id="vtDate"></span>
+      </p>
+      <div id="vtStatusBadge" style="margin-top: 8px;"></div>
+    </div>
+    
+    <div style="background: #f8fafc; padding: 16px; border-radius: 12px; font-size: 14px; color: #334155; margin-bottom: 24px; border-left: 4px solid #6366f1;">
+      <strong>Original Issue:</strong><br>
+      <span id="vtDesc"></span>
+    </div>
+
+    <h4 style="margin: 0 0 12px; font-size: 13px; color: #475569; text-transform: uppercase;">Conversation</h4>
+    <div id="ticketReplies" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; max-height: 300px; overflow-y: auto;">
+      <!-- Chat bubbles injected here -->
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-top: 16px;">
+      <input id="replyText" placeholder="Type your reply..." style="flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1;">
+      <button onclick="submitReply()">Send</button>
+    </div>
+
+    <div class="modal-actions" style="margin-top: 24px;">
       <button class="ghost" onclick="$('viewTicketModal').hidden = true">Close</button>
     </div>
   </div>
