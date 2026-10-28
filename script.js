@@ -98,7 +98,7 @@ function showApp() {
   $("navCatalog").hidden = isAdmin;
   $("navRequests").hidden = !isBookkeeper;
   $("navLoans").hidden = isAdmin;
-  $("navHistory").hidden = isAdmin; // Students can see history
+  $("navHistory").hidden = isAdmin;
   $("navBooks").hidden = !isBookkeeper;
   $("navUsers").hidden = !isAdmin;
   $("navTickets").hidden = isBookkeeper;
@@ -357,22 +357,26 @@ function submitReject() {
 
 // ---- LOANS & EXTENSIONS ----
 function renderLoans() {
-  $("noLoans").hidden = loans.length > 0;
   const isStudent = currentUser.role === 'Student';
+  
+  // FILTER: Students only see their own loans
+  const visibleLoans = isStudent 
+    ? loans.filter(l => l.borrowerId === currentUser.id) 
+    : loans;
 
-  $("loansBody").innerHTML = loans.map(l => {
+  $("noLoans").hidden = visibleLoans.length > 0;
+
+  $("loansBody").innerHTML = visibleLoans.map(l => {
     const book = books.find(b => b.id === l.bookId);
     const hasPendingExt = extensionRequests.find(r => r.loanId === l.id);
     
     let actions = `<button class="ghost small" onclick="viewLoanDetails(${l.id}, false)">View</button>`;
     
     if (isStudent) {
-      if (l.borrowerId === currentUser.id) {
-        if (hasPendingExt) {
-          actions += `<span style="font-size: 12px; color: #b45309; font-weight: 600; margin-left: 8px;">Ext. Pending</span>`;
-        } else {
-          actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendRequest(${l.id})">Request Extend</button>`;
-        }
+      if (hasPendingExt) {
+        actions += `<span style="font-size: 12px; color: #b45309; font-weight: 600; margin-left: 8px;">Ext. Pending</span>`;
+      } else {
+        actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendRequest(${l.id})">Request Extend</button>`;
       }
     } else {
       actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendLoan(${l.id})">Extend</button>`;
@@ -593,6 +597,7 @@ function renderHistory() {
   const isStudent = currentUser.role === 'Student';
   
   if (isStudent) {
+    // ONLY show this student's history and rejections
     const myHistory = history.filter(h => h.borrowerId === currentUser.id).map(h => ({...h, type: 'loan'}));
     const myRejections = rejections.filter(r => r.studentId === currentUser.id).map(r => ({...r, type: 'reject'}));
     
@@ -626,7 +631,7 @@ function renderHistory() {
     }).join("");
     
   } else {
-    // Combine history and rejections for Admin/Bookkeeper
+    // Admin/Bookkeeper sees ALL history and rejections
     const combinedHistory = [
       ...history.map(h => ({ ...h, itemType: 'loan' })),
       ...rejections.map(r => ({ ...r, itemType: 'rejection' }))
@@ -868,9 +873,13 @@ function deleteUser(id) {
   renderManageUsers();
 }
 
-// ---- SUPPORT TICKETS ----
+// ---- SUPPORT TICKETS & REPLIES ----
+let currentTicketId = null;
+
 function renderTickets() {
   const isStudent = currentUser.role === 'Student';
+  
+  // ONLY show this student's tickets
   const myTickets = isStudent ? tickets.filter(t => t.userId === currentUser.id) : tickets;
   
   $("noTickets").hidden = myTickets.length > 0;
@@ -886,12 +895,27 @@ function renderTickets() {
       </td>
       <td>
         <div class="actions-cell">
-          <button class="ghost small" onclick="viewTicket(${t.id})">View</button>
-          ${!isStudent && t.status === 'Open' ? `<button class="small" onclick="resolveTicket(${t.id})">Resolve</button>` : ''}
+          ${!isStudent ? `
+            <button class="ghost small" onclick="toggleTicketStatus(${t.id})">
+              ${t.status === 'Open' ? 'Close Chat' : 'Reopen Chat'}
+            </button>
+          ` : ''}
+          <button class="ghost small" onclick="viewTicket(${t.id})">View / Reply</button>
         </div>
       </td>
     </tr>
   `).join("");
+}
+
+function toggleTicketStatus(id) {
+  if (currentUser.role === 'Student') return; // Students cannot close/reopen
+  
+  const t = tickets.find(x => x.id === id);
+  if (!t) return;
+  
+  t.status = (t.status === 'Open') ? 'Resolved' : 'Open';
+  save();
+  renderTickets();
 }
 
 function openTicketForm() {
@@ -916,7 +940,8 @@ function submitTicket() {
     subject: subject,
     desc: desc,
     date: new Date().toISOString().slice(0, 10),
-    status: "Open"
+    status: "Open",
+    replies: []
   });
   save();
   $("ticketFormModal").hidden = true;
@@ -924,19 +949,68 @@ function submitTicket() {
 }
 
 function viewTicket(id) {
+  currentTicketId = id;
   const t = tickets.find(x => x.id === id);
+  
   $("vtSubject").textContent = t.subject;
   $("vtUser").textContent = t.userName;
   $("vtDate").textContent = t.date;
   $("vtDesc").textContent = t.desc;
+  $("replyText").value = "";
+
+  // Set Status Badge
+  $("vtStatusBadge").innerHTML = `
+    <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+      Status: ${t.status}
+    </span>
+  `;
+
+  // Render Replies
+  const rContainer = $("ticketReplies");
+  if (!t.replies || t.replies.length === 0) {
+    rContainer.innerHTML = `<p style="font-size: 13px; color: #94a3b8; font-style: italic; text-align: center;">No replies yet.</p>`;
+  } else {
+    rContainer.innerHTML = t.replies.map(r => {
+      const isAdmin = r.sender === 'Admin' || r.sender === 'Bookkeeper';
+      return `
+        <div class="reply-bubble ${isAdmin ? 'admin' : 'student'}">
+          <strong>${r.sender}:</strong> ${r.text}
+          <div class="reply-meta">${r.date}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  // Toggle Chat Input vs Closed Message
+  if (t.status === 'Open') {
+    $("replyArea").style.display = "flex";
+    $("resolvedMessage").style.display = "none";
+  } else {
+    $("replyArea").style.display = "none";
+    $("resolvedMessage").style.display = "block";
+  }
+
   $("viewTicketModal").hidden = false;
 }
 
-function resolveTicket(id) {
-  const t = tickets.find(x => x.id === id);
-  t.status = "Resolved";
+function submitReply() {
+  const text = $("replyText").value.trim();
+  if (!text) return;
+  
+  const t = tickets.find(x => x.id === currentTicketId);
+  if (!t) return;
+  
+  if (!t.replies) t.replies = [];
+  
+  t.replies.push({
+    sender: currentUser.role,
+    text: text,
+    date: new Date().toLocaleString()
+  });
+  
   save();
-  renderTickets();
+  viewTicket(currentTicketId); // Re-render modal
+  renderTickets(); // Update table
 }
 
 // ---- INIT ----
