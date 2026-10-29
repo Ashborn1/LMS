@@ -39,7 +39,51 @@ let extensionRequests = JSON.parse(localStorage.getItem("extReqs") || "[]");
 let tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
 
 let currentUser = null;
+let currentTicketView = 'ongoing'; 
+let minCopiesAllowed = 1;
+let pendingConfirmAction = null;
 const $ = id => document.getElementById(id);
+
+// ---- THEME DROPDOWN LOGIC ----
+const savedTheme = localStorage.getItem("themeName") || "midnight-ocean";
+document.documentElement.setAttribute("data-theme", savedTheme);
+
+function toggleThemeDropdown(e) {
+  e.stopPropagation();
+  const dd = $("themeDropdown");
+  dd.style.display = dd.style.display === "none" ? "flex" : "none";
+}
+
+document.addEventListener("click", (e) => {
+  const dd = $("themeDropdown");
+  const btn = $("themeBtn");
+  if (dd && dd.style.display === "flex" && !btn.contains(e.target) && !dd.contains(e.target)) {
+    dd.style.display = "none";
+  }
+});
+
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("themeName", theme);
+  $("themeDropdown").style.display = "none";
+
+  const activeOpt = document.querySelector(`.theme-option[data-theme="${theme}"]`);
+  if (activeOpt) {
+    document.querySelectorAll(".theme-option").forEach(opt => opt.classList.remove("active"));
+    activeOpt.classList.add("active");
+    
+    const icon = activeOpt.querySelector(".theme-option-icon").cloneNode(true);
+    const title = activeOpt.querySelector(".theme-option-title").textContent;
+    
+    const btnIcon = $("activeThemeIcon");
+    btnIcon.style.background = icon.style.background;
+    btnIcon.style.color = icon.style.color;
+    btnIcon.textContent = icon.textContent;
+    $("activeThemeName").textContent = title;
+  }
+}
+
+setTheme(savedTheme);
 
 function save() {
   localStorage.setItem("users", JSON.stringify(users));
@@ -62,27 +106,34 @@ function getThemeClass(cat) {
 
 const borrowedCount = id => loans.filter(l => l.bookId === id).length;
 
-// ---- CUSTOM CONFIRM MODAL ----
-function showConfirm(title, message, onConfirm) {
-  $("confirmTitle").textContent = title;
-  $("confirmMessage").textContent = message;
-  
-  const btn = $("confirmBtn");
-  const newBtn = btn.cloneNode(true);
-  btn.parentNode.replaceChild(newBtn, btn);
-  
-  newBtn.onclick = () => {
-    $("confirmModal").hidden = true;
-    onConfirm();
-  };
-  
-  $("confirmModal").hidden = false;
+// ---- GLOBAL CONFIRM MODAL ----
+function showConfirm(title, message, confirmText, callback) {
+  $("gcTitle").textContent = title;
+  $("gcMessage").textContent = message;
+  $("gcConfirmBtn").textContent = confirmText;
+  pendingConfirmAction = callback;
+  $("globalConfirmModal").hidden = false;
 }
 
-// ---- AUTHENTICATION ----
+$("gcConfirmBtn").onclick = () => {
+  if (pendingConfirmAction) pendingConfirmAction();
+  $("globalConfirmModal").hidden = true;
+  pendingConfirmAction = null;
+};
+
+// ---- GLOBAL ESC KEY LISTENER ----
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    document.querySelectorAll(".modal").forEach(m => m.hidden = true);
+    $("themeDropdown").style.display = "none";
+  }
+});
+
+// ---- AUTHENTICATION (FORM SUBMIT) ----
 $("loginForm").onsubmit = (e) => {
   e.preventDefault();
   $("loginErr").textContent = "";
+  
   const u = $("user").value.trim();
   const p = $("pass").value;
   const found = users.find(x => x.username === u && x.password === p);
@@ -103,7 +154,7 @@ $("logout").onclick = () => {
   $("app").hidden = true;
 };
 
-// ---- GUEST TICKETS ----
+// ---- GUEST TICKETS (From Login Page) ----
 function openAuthTicketModal(e) {
   e.preventDefault();
   $("authName").value = "";
@@ -131,7 +182,8 @@ function submitAuthTicket() {
     userName: name + " (Guest)",
     subject: "Account Recovery: " + user,
     desc: desc,
-    date: new Date().toISOString().slice(0, 10),
+    date: new Date().toISOString().slice(0, 10), 
+    time: new Date().toLocaleString(), 
     status: "Open",
     replies: []
   });
@@ -142,7 +194,9 @@ function submitAuthTicket() {
   
   save();
   $("authTicketModal").hidden = true;
-  alert("Ticket sent! You can track it by clicking 'Track my submitted tickets' below.");
+  
+  $("guestTicketsModal").hidden = false;
+  renderGuestTickets();
 }
 
 function openGuestTickets(e) {
@@ -158,11 +212,13 @@ function renderGuestTickets() {
   const container = $("guestTicketsList");
   
   if (myTickets.length === 0) {
-    container.innerHTML = `<p style="text-align: center; color: #64748b; font-style: italic;">You haven't submitted any tickets yet.</p>`;
+    container.innerHTML = `<p style="text-align: center; color: var(--muted); font-style: italic;">You haven't submitted any tickets yet.</p>`;
     return;
   }
   
   container.innerHTML = myTickets.map(t => {
+    const tTime = t.time || t.date;
+    
     let repliesHtml = "";
     if (t.replies && t.replies.length > 0) {
       repliesHtml = `<div class="guest-ticket-replies">
@@ -184,7 +240,7 @@ function renderGuestTickets() {
         </div>
       `;
     } else {
-      replyInput = `<p style="font-size: 12px; color: #64748b; margin-top: 8px; font-style: italic;">This ticket is resolved. The Admin must reopen it for you to chat.</p>`;
+      replyInput = `<p style="font-size: 12px; color: var(--muted); margin-top: 8px; font-style: italic;">This ticket is resolved. The Admin must reopen it for you to chat.</p>`;
     }
 
     return `
@@ -192,9 +248,9 @@ function renderGuestTickets() {
         <div class="guest-ticket-header">
           <div>
             <div class="guest-ticket-title">${t.subject}</div>
-            <div class="guest-ticket-date">Submitted on ${t.date}</div>
+            <div class="guest-ticket-date">Submitted on ${tTime}</div>
           </div>
-          <span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+          <span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: ${t.status === 'Open' ? 'color-mix(in srgb, #f59e0b 15%, transparent)' : 'color-mix(in srgb, #10b981 15%, transparent)'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
             ${t.status}
           </span>
         </div>
@@ -227,7 +283,6 @@ function submitGuestReply(ticketId) {
   renderGuestTickets();
 }
 
-// ---- APP LOGIC ----
 function showApp() {
   $("auth").hidden = true;
   $("app").hidden = false;
@@ -239,7 +294,7 @@ function showApp() {
   const isAdmin = currentUser.role === "Admin";
 
   $("navCatalog").hidden = isAdmin;
-  $("navMyRequests").hidden = !isStudent;
+  $("navMyRequests").hidden = !isStudent; // Show only to Student
   $("navRequests").hidden = !isBookkeeper;
   $("navLoans").hidden = isAdmin;
   $("navHistory").hidden = isAdmin;
@@ -248,21 +303,24 @@ function showApp() {
   $("navTickets").hidden = isBookkeeper;
 
   $("btnNewTicket").style.display = isAdmin ? "none" : "block";
+  $("ticketTabs").style.display = isAdmin ? "flex" : "none";
+  $("thQueue").style.display = isAdmin ? "table-cell" : "none";
 
   if (isAdmin) switchView("users");
   else if (isBookkeeper) switchView("requests");
   else switchView("catalog");
 }
 
+// ---- NAVIGATION ----
 function switchView(viewName) {
   ['catalog', 'my-requests', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
     $("view-" + v).hidden = true;
-    const navBtn = $("nav" + v.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(''));
+    const navBtn = $("nav" + v.charAt(0).toUpperCase() + v.slice(1).replace('-', ''));
     if (navBtn) navBtn.classList.remove("active");
   });
   
   $("view-" + viewName).hidden = false;
-  const activeBtn = $("nav" + viewName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(''));
+  const activeBtn = $("nav" + viewName.charAt(0).toUpperCase() + viewName.slice(1).replace('-', ''));
   if (activeBtn) activeBtn.classList.add("active");
 
   if (viewName === 'catalog') renderCatalog();
@@ -275,7 +333,7 @@ function switchView(viewName) {
   if (viewName === 'tickets') renderTickets();
 }
 
-// ---- CATALOG ----
+// ---- CATALOG & BOOK INFO ----
 function renderCatalog() {
   const q = $("search").value.toLowerCase();
   const cat = $("catFilter").value;
@@ -308,22 +366,26 @@ function renderCatalog() {
     const avail = b.copies - borrowedCount(b.id);
     const theme = getThemeClass(b.cat);
     
-    let actionBtns = `<button class="view-btn" onclick="openBookInfo(${b.id})">View</button>`;
+    let actionBtns = "";
     
     if (currentUser.role === 'Student') {
       const alreadyReq = requests.find(r => r.bookId === b.id && r.studentId === currentUser.id);
       const alreadyBorrowed = loans.find(l => l.bookId === b.id && l.borrowerId === currentUser.id);
       
       if (alreadyReq) {
-        actionBtns += `<button disabled style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; opacity:1;">Requested</button>`;
+        actionBtns += `<button disabled style="background:color-mix(in srgb, #f59e0b 15%, transparent); color:#b45309; border:1px solid #fcd34d; opacity:1;" onclick="event.stopPropagation()">Requested</button>`;
       } else if (alreadyBorrowed) {
-        actionBtns += `<button disabled style="background:#d1fae5; color:#047857; border:1px solid #6ee7b7; opacity:1;">Borrowed</button>`;
+        actionBtns += `<button disabled style="background:color-mix(in srgb, #10b981 15%, transparent); color:#047857; border:1px solid #6ee7b7; opacity:1;" onclick="event.stopPropagation()">Borrowed</button>`;
       } else {
-        actionBtns += `<button ${avail === 0 ? "disabled" : ""} onclick="openRequest(${b.id})">Request</button>`;
+        if (avail > 0) {
+          actionBtns += `<button onclick="event.stopPropagation(); openRequest(${b.id}, false)">Borrow</button>`;
+        } else {
+          actionBtns += `<button style="background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; box-shadow:0 4px 12px rgba(245,158,11,0.3);" onclick="event.stopPropagation(); openRequest(${b.id}, true)">Request</button>`;
+        }
       }
     }
 
-    return `<div class="book ${theme}">
+    return `<div class="book ${theme}" onclick="openBookInfo(${b.id})">
       <span class="cat">${b.cat}</span>
       <h3>${b.title}</h3>
       <span class="avail">${avail} of ${b.copies} available</span>
@@ -351,59 +413,89 @@ function openBookInfo(id) {
   $("bookInfoModal").hidden = false;
 }
 
-// ---- MY REQUESTS (STUDENT) ----
-let editReqId = null;
+// ---- STUDENT: REQUEST BORROWING (WITH WAITLIST) ----
+let requestingBookId = null;
+let isWaitlistReq = false;
 
+function openRequest(id, isWaitlist = false) {
+  requestingBookId = id;
+  isWaitlistReq = isWaitlist;
+  const b = books.find(x => x.id === id);
+  
+  $("reqName").value = currentUser.name;
+  $("reqStudentId").value = currentUser.studentNum || "Not Set";
+  $("reqSection").value = currentUser.section || "Not Set";
+  
+  $("reqContact").value = "";
+  $("reqNotes").value = "";
+  $("reqErr").textContent = "";
+
+  if (isWaitlist) {
+    $("reqBookName").innerHTML = `${b.title} <br><span style="color:#b45309; font-size:12px; font-weight:600;">(Out of Stock - Joining Waitlist)</span>`;
+  } else {
+    $("reqBookName").textContent = b.title;
+  }
+  
+  $("requestModal").hidden = false;
+}
+
+function submitRequest() {
+  if (!currentUser.studentNum || !currentUser.section) {
+    $("reqErr").textContent = "Your profile is missing Student ID or Section. Please contact Admin.";
+    return;
+  }
+
+  requests.push({
+    id: Date.now(),
+    bookId: requestingBookId,
+    studentId: currentUser.id,
+    studentName: currentUser.name,
+    reqStudentId: currentUser.studentNum,
+    reqSection: currentUser.section,
+    reqContact: $("reqContact").value.trim(),
+    notes: $("reqNotes").value.trim(),
+    isWaitlist: isWaitlistReq,
+    dateRequested: new Date().toISOString().slice(0, 10)
+  });
+  
+  save();
+  $("requestModal").hidden = true;
+  renderCatalog();
+}
+
+// ---- STUDENT: MY REQUESTS VIEW ----
 function renderMyRequests() {
   const myReqs = requests.filter(r => r.studentId === currentUser.id);
+  
   $("noMyRequests").hidden = myReqs.length > 0;
   
   $("myRequestsBody").innerHTML = myReqs.map(r => {
     const book = books.find(b => b.id === r.bookId);
+    const badge = r.isWaitlist ? `<span style="background:#f59e0b; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; margin-left:8px;">WAITLIST</span>` : "";
+    
     return `<tr>
-      <td><strong>${book ? book.title : "Unknown"}</strong></td>
+      <td><strong>${book ? book.title : "Deleted Book"}</strong> ${badge}</td>
       <td>${r.dateRequested}</td>
-      <td>${r.notes || "—"}</td>
-      <td><span style="color: #b45309; font-weight: 600;">Pending</span></td>
+      <td>
+        <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, #f59e0b 15%, transparent); color: #b45309;">
+          Pending Approval
+        </span>
+      </td>
       <td>
         <div class="actions-cell">
-          <button class="ghost small" onclick="openEditRequest(${r.id})">Edit</button>
-          <button class="ghost danger small" onclick="cancelRequest(${r.id})">Cancel</button>
+          <button class="ghost danger small" onclick="cancelRequest(${r.id})">Cancel Request</button>
         </div>
       </td>
     </tr>`;
   }).join("");
 }
 
-function openEditRequest(reqId) {
-  editReqId = reqId;
-  const req = requests.find(r => r.id === reqId);
-  const book = books.find(b => b.id === req.bookId);
-  
-  $("erBookName").textContent = book ? book.title : "Unknown";
-  $("erNotes").value = req.notes || "";
-  $("erErr").textContent = "";
-  $("editRequestModal").hidden = false;
-}
-
-function saveEditRequest() {
-  const newNotes = $("erNotes").value.trim();
-  const req = requests.find(r => r.id === editReqId);
-  
-  if (req) {
-    req.notes = newNotes;
-    save();
-    $("editRequestModal").hidden = true;
-    renderMyRequests();
-  }
-}
-
 function cancelRequest(reqId) {
-  showConfirm("Cancel Request", "Are you sure you want to cancel this borrow request?", () => {
+  showConfirm("Cancel Request", "Are you sure you want to cancel this borrow request?", "Cancel Request", () => {
     requests = requests.filter(r => r.id !== reqId);
     save();
     renderMyRequests();
-    renderCatalog(); 
+    renderCatalog(); // Update button in catalog
   });
 }
 
@@ -412,9 +504,11 @@ function renderRequests() {
   $("noRequests").hidden = requests.length > 0;
   $("requestsBody").innerHTML = requests.map(r => {
     const book = books.find(b => b.id === r.bookId);
+    const waitlistBadge = r.isWaitlist ? `<span style="display:inline-block; margin-left: 8px; background:#f59e0b; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; letter-spacing:0.5px;">WAITLIST</span>` : "";
+    
     return `<tr>
       <td><strong>${book ? book.title : "Deleted Book"}</strong></td>
-      <td>${r.studentName}</td>
+      <td>${r.studentName} ${waitlistBadge}</td>
       <td>${r.dateRequested}</td>
       <td>
         <div class="actions-cell">
@@ -513,9 +607,7 @@ function submitReject() {
 // ---- LOANS & EXTENSIONS ----
 function renderLoans() {
   const isStudent = currentUser.role === 'Student';
-  const visibleLoans = isStudent 
-    ? loans.filter(l => l.borrowerId === currentUser.id) 
-    : loans;
+  const visibleLoans = isStudent ? loans.filter(l => l.borrowerId === currentUser.id) : loans;
 
   $("noLoans").hidden = visibleLoans.length > 0;
 
@@ -529,10 +621,10 @@ function renderLoans() {
       if (hasPendingExt) {
         actions += `<span style="font-size: 12px; color: #b45309; font-weight: 600; margin-left: 8px;">Ext. Pending</span>`;
       } else {
-        actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendRequest(${l.id})">Request Extend</button>`;
+        actions += `<button class="ghost small" style="color:var(--primary); border-color:color-mix(in srgb, var(--primary) 40%, var(--border));" onclick="openExtendRequest(${l.id})">Request Extend</button>`;
       }
     } else {
-      actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendLoan(${l.id})">Extend</button>`;
+      actions += `<button class="ghost small" style="color:var(--primary); border-color:color-mix(in srgb, var(--primary) 40%, var(--border));" onclick="openExtendLoan(${l.id})">Extend</button>`;
       actions += `<button class="small" onclick="returnBook(${l.id})">Return</button>`;
     }
 
@@ -569,8 +661,8 @@ function viewLoanDetails(id, isHistory) {
   if (loan.extensions && loan.extensions.length > 0) {
     extArea.style.display = "block";
     extList.innerHTML = loan.extensions.map(e => `
-      <div style="border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; margin-bottom: 8px;">
-        <div style="font-weight: 600; color: #4f46e5;">New Due: ${e.newDue}</div>
+      <div style="border-bottom: 1px dashed var(--border); padding-bottom: 8px; margin-bottom: 8px;">
+        <div style="font-weight: 600; color: var(--primary);">New Due: ${e.newDue}</div>
         <div><strong>Reason:</strong> ${e.reason}</div>
       </div>
     `).join("");
@@ -674,7 +766,7 @@ function renderExtensionRequests() {
   
   if (extensionRequests.length > 0) {
     extArea.innerHTML += extensionRequests.map(ext => `
-      <tr style="background: #fef2f2;">
+      <tr style="background: color-mix(in srgb, #ef4444 5%, transparent);">
         <td><strong>[EXTENSION] ${ext.bookName}</strong></td>
         <td>${ext.studentName}</td>
         <td>Reason: ${ext.reason}</td>
@@ -725,7 +817,7 @@ function approveExtension() {
 }
 
 function rejectExtension(id) {
-  showConfirm("Reject Extension", "Are you sure you want to reject this extension request?", () => {
+  showConfirm("Reject Extension", "Are you sure you want to reject this extension request?", "Reject", () => {
     extensionRequests = extensionRequests.filter(r => r.id !== id);
     save();
     switchView("requests");
@@ -768,7 +860,7 @@ function renderHistory() {
           <td><strong>${book ? book.title : "Unknown"}</strong></td>
           <td><span style="color: #10b981; font-weight: 600;">Returned</span></td>
           <td>${item.returnedAt}</td>
-          <td style="font-style: italic; color: #64748b;">${item.notes || "—"}</td>
+          <td style="font-style: italic; color: var(--muted);">${item.notes || "—"}</td>
         </tr>`;
       } else {
         const book = books.find(b => b.id === item.bookId);
@@ -830,7 +922,7 @@ function renderHistory() {
 }
 
 function deleteHistory(id) {
-  showConfirm("Delete History Record", "Are you sure you want to permanently delete this record?", () => {
+  showConfirm("Delete History", "Are you sure you want to permanently delete this history record?", "Delete", () => {
     history = history.filter(h => h.id !== id);
     save();
     renderHistory();
@@ -838,7 +930,7 @@ function deleteHistory(id) {
 }
 
 function deleteRejection(id) {
-  showConfirm("Delete Rejection Record", "Are you sure you want to permanently delete this rejected request?", () => {
+  showConfirm("Delete Record", "Are you sure you want to delete this rejected request record?", "Delete", () => {
     rejections = rejections.filter(r => r.id !== id);
     save();
     renderHistory();
@@ -871,14 +963,11 @@ function renderManageBooks() {
     return 0;
   });
 
-  $("manageBooksBody").innerHTML = filtered.map(b => {
-    const borrowed = borrowedCount(b.id);
-    return `
+  $("manageBooksBody").innerHTML = filtered.map(b => `
     <tr>
       <td><strong>${b.title}</strong></td>
       <td>${b.cat}</td>
       <td>${b.copies}</td>
-      <td><span style="font-weight: 600; color: ${borrowed > 0 ? '#ef4444' : '#64748b'};">${borrowed}</span></td>
       <td>
         <div class="actions-cell">
           <button class="ghost small" onclick="openBookForm(${b.id})">Edit</button>
@@ -886,62 +975,68 @@ function renderManageBooks() {
         </div>
       </td>
     </tr>
-  `;
-  }).join("");
+  `).join("");
 }
 
 $("adminBookSearch").oninput = renderManageBooks;
 $("adminCatFilter").onchange = renderManageBooks;
 $("sortAdminBooks").onchange = renderManageBooks;
 
-function adjustCopies(amount) {
-  const input = $("bfCopies");
-  let currentVal = parseInt(input.value) || 1;
-  let newVal = currentVal + amount;
-  
-  if (newVal < 1) newVal = 1; // Minimum 1 copy total
-  
-  const id = $("bfId").value;
-  if (id) {
-    const b = books.find(x => x.id == id);
-    const borrowed = borrowedCount(b.id);
-    
-    if (newVal < borrowed) {
-      newVal = borrowed; // Cap at borrowed limit
-      $("bfError").textContent = `Cannot reduce stock below ${borrowed} because there are active loans.`;
-      setTimeout(() => { $("bfError").textContent = ""; }, 3000);
-    }
-  }
-  
-  input.value = newVal;
-}
-
 function openBookForm(id = null) {
   $("bfId").value = id || "";
   $("bookFormTitle").textContent = id ? "Edit Book" : "Add New Book";
-  $("bfError").textContent = ""; // Clear errors
   
   if (id) {
     const b = books.find(x => x.id === id);
     $("bfTitle").value = b.title;
     $("bfCategory").value = b.cat;
-    $("bfCopiesLabel").textContent = `Copies (Currently ${borrowedCount(b.id)} borrowed)`;
+    
+    const activeLoans = borrowedCount(id);
+    minCopiesAllowed = Math.max(1, activeLoans); 
+    
     $("bfCopies").value = b.copies;
+    $("btnMinusCopies").disabled = (b.copies <= minCopiesAllowed);
+
+    const pendingReqs = requests.filter(r => r.bookId === id).length;
+    $("bfStats").innerHTML = `
+      <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+        <span style="color:#f59e0b;">●</span> <strong>${activeLoans}</strong> currently borrowed
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+        <span style="color:#6366f1;">●</span> <strong>${pendingReqs}</strong> pending requests
+      </div>
+    `;
+    
     $("bfAuthor").value = b.author || "";
     $("bfPublished").value = b.published || "";
     $("bfIcon").value = b.icon || "📘";
     $("bfSummary").value = b.summary || "";
   } else {
+    minCopiesAllowed = 1;
     $("bfTitle").value = "";
     $("bfCategory").value = "IT";
-    $("bfCopiesLabel").textContent = "Initial Copies";
     $("bfCopies").value = 1;
+    $("btnMinusCopies").disabled = true;
+    $("bfStats").innerHTML = ""; 
     $("bfAuthor").value = "";
     $("bfPublished").value = new Date().getFullYear();
     $("bfIcon").value = "📘";
     $("bfSummary").value = "";
   }
   $("bookFormModal").hidden = false;
+}
+
+function adjustCopies(change) {
+  let val = parseInt($("bfCopies").value) || 1;
+  let newVal = val + change;
+  
+  if (newVal < minCopiesAllowed) {
+    showConfirm("Stock Limit Reached", `You cannot reduce the stock below ${minCopiesAllowed} because there are currently ${minCopiesAllowed} active loans for this book.`, "Okay", () => {});
+    return;
+  }
+  
+  $("bfCopies").value = newVal;
+  $("btnMinusCopies").disabled = (newVal <= minCopiesAllowed);
 }
 
 function saveBook() {
@@ -955,33 +1050,29 @@ function saveBook() {
   const summary = $("bfSummary").value;
 
   if (!title) {
-    $("bfError").textContent = "Title is required.";
+    showConfirm("Missing Field", "Title is required.", "Okay", () => {});
     return;
   }
-
+  
   if (id) {
-    const b = books.find(x => x.id == id);
-    const borrowed = borrowedCount(b.id);
-    
-    if (copies < borrowed) {
-      $("bfError").textContent = `Cannot reduce total copies below ${borrowed} because there are active loans.`;
+    if (copies < minCopiesAllowed) {
+      showConfirm("Stock Limit Reached", `Cannot set copies below ${minCopiesAllowed} due to active loans.`, "Okay", () => {});
       return;
     }
-
+    const b = books.find(x => x.id == id);
     b.title = title; b.cat = cat; b.copies = copies; b.author = author; b.published = published; b.icon = icon; b.summary = summary;
   } else {
     books.push({
       id: Date.now(), title, cat, copies, author, published, icon, summary
     });
   }
-  
   save();
   $("bookFormModal").hidden = true;
   renderManageBooks();
 }
 
 function deleteBook(id) {
-  showConfirm("Delete Book", "Are you sure you want to delete this book? Active loans will be affected.", () => {
+  showConfirm("Delete Book", "Are you sure you want to delete this book? Active loans will be affected.", "Delete", () => {
     books = books.filter(b => b.id !== id);
     save();
     renderManageBooks();
@@ -990,11 +1081,27 @@ function deleteBook(id) {
 
 // ---- ADMIN: MANAGE USERS ----
 function renderManageUsers() {
-  $("manageUsersBody").innerHTML = users.map(u => `
+  const q = $("adminUserSearch").value.toLowerCase();
+  
+  const filtered = users.filter(u => 
+    !q || 
+    u.name.toLowerCase().includes(q) || 
+    u.username.toLowerCase().includes(q) || 
+    u.role.toLowerCase().includes(q) ||
+    (u.studentNum && u.studentNum.toLowerCase().includes(q)) ||
+    (u.section && u.section.toLowerCase().includes(q))
+  );
+
+  if (filtered.length === 0) {
+    $("manageUsersBody").innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">No accounts match your search.</td></tr>`;
+    return;
+  }
+
+  $("manageUsersBody").innerHTML = filtered.map(u => `
     <tr>
       <td><strong>${u.name}</strong></td>
       <td>${u.username}</td>
-      <td><span class="cat" style="background:#e0e7ff; color:#4f46e5;">${u.role}</span></td>
+      <td><span class="cat" style="background:color-mix(in srgb, var(--primary) 15%, transparent); color:var(--primary);">${u.role}</span></td>
       <td>
         <div class="actions-cell">
           <button class="ghost small" onclick="openUserForm(${u.id})">Edit</button>
@@ -1004,6 +1111,8 @@ function renderManageUsers() {
     </tr>
   `).join("");
 }
+
+$("adminUserSearch").oninput = renderManageUsers;
 
 function toggleUserFields() {
   const role = $("ufRole").value;
@@ -1045,7 +1154,10 @@ function saveUser() {
   const studentNum = $("ufStudentNum").value;
   const section = $("ufSection").value;
 
-  if (!name || !username || !password) return alert("All fields required");
+  if (!name || !username || !password) {
+    showConfirm("Missing Fields", "All fields are required.", "Okay", () => {});
+    return;
+  }
 
   if (id) {
     const u = users.find(x => x.id == id);
@@ -1059,7 +1171,7 @@ function saveUser() {
 }
 
 function deleteUser(id) {
-  showConfirm("Delete Account", "Are you sure you want to permanently delete this user account?", () => {
+  showConfirm("Delete Account", "Are you sure you want to delete this user account permanently?", "Delete", () => {
     users = users.filter(u => u.id !== id);
     save();
     renderManageUsers();
@@ -1069,18 +1181,57 @@ function deleteUser(id) {
 // ---- SUPPORT TICKETS & REPLIES ----
 let currentTicketId = null;
 
+function switchTicketView(view) {
+  currentTicketView = view;
+  document.querySelectorAll('#ticketTabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+  if(view === 'ongoing') $("tabOngoing").classList.add('active');
+  else $("tabResolved").classList.add('active');
+  renderTickets();
+}
+
 function renderTickets() {
   const isStudent = currentUser.role === 'Student';
-  const myTickets = isStudent ? tickets.filter(t => t.userId === currentUser.id) : tickets;
   
-  $("noTickets").hidden = myTickets.length > 0;
+  let displayTickets = [];
   
-  $("ticketsBody").innerHTML = myTickets.map(t => `
-    <tr>
+  if (isStudent) {
+    displayTickets = tickets.filter(t => t.userId === currentUser.id);
+    displayTickets.sort((a,b) => new Date(b.time || b.date) - new Date(a.time || a.date));
+  } else {
+    displayTickets = tickets.filter(t => currentTicketView === 'ongoing' ? t.status === 'Open' : t.status === 'Resolved');
+    
+    displayTickets.sort((a,b) => {
+      const timeA = new Date(a.time || a.date).getTime();
+      const timeB = new Date(b.time || b.date).getTime();
+      return currentTicketView === 'ongoing' ? timeA - timeB : timeB - timeA;
+    });
+  }
+  
+  $("noTickets").hidden = displayTickets.length > 0;
+  
+  const ongoingTickets = tickets.filter(t => t.status === 'Open');
+  ongoingTickets.sort((a,b) => new Date(a.time || a.date) - new Date(b.time || b.date));
+
+  $("ticketsBody").innerHTML = displayTickets.map(t => {
+    let queueNumHtml = "";
+    if (!isStudent) {
+      if (currentTicketView === 'ongoing') {
+        const qIndex = ongoingTickets.findIndex(x => x.id === t.id) + 1;
+        queueNumHtml = `<td><span class="queue-badge">#${qIndex}</span></td>`;
+      } else {
+        queueNumHtml = `<td>—</td>`;
+      }
+    }
+
+    const tTime = t.time || t.date;
+
+    return `<tr>
+      ${queueNumHtml}
+      <td style="font-size: 12px; color: var(--muted);">${tTime}</td>
       <td><strong>${t.subject}</strong></td>
       <td>${t.userName}</td>
       <td>
-        <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+        <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? 'color-mix(in srgb, #f59e0b 15%, transparent)' : 'color-mix(in srgb, #10b981 15%, transparent)'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
           ${t.status}
         </span>
       </td>
@@ -1094,8 +1245,8 @@ function renderTickets() {
           <button class="ghost small" onclick="viewTicket(${t.id})">View / Reply</button>
         </div>
       </td>
-    </tr>
-  `).join("");
+    </tr>`;
+  }).join("");
 }
 
 function toggleTicketStatus(id) {
@@ -1105,6 +1256,11 @@ function toggleTicketStatus(id) {
   if (!t) return;
   
   t.status = (t.status === 'Open') ? 'Resolved' : 'Open';
+  
+  if (t.status === 'Open') {
+    t.time = new Date().toLocaleString();
+  }
+  
   save();
   renderTickets();
 }
@@ -1131,6 +1287,7 @@ function submitTicket() {
     subject: subject,
     desc: desc,
     date: new Date().toISOString().slice(0, 10),
+    time: new Date().toLocaleString(),
     status: "Open",
     replies: []
   });
@@ -1142,22 +1299,23 @@ function submitTicket() {
 function viewTicket(id) {
   currentTicketId = id;
   const t = tickets.find(x => x.id === id);
+  const tTime = t.time || t.date;
   
   $("vtSubject").textContent = t.subject;
   $("vtUser").textContent = t.userName;
-  $("vtDate").textContent = t.date;
+  $("vtDate").textContent = tTime;
   $("vtDesc").textContent = t.desc;
   $("replyText").value = "";
 
   $("vtStatusBadge").innerHTML = `
-    <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+    <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? 'color-mix(in srgb, #f59e0b 15%, transparent)' : 'color-mix(in srgb, #10b981 15%, transparent)'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
       Status: ${t.status}
     </span>
   `;
 
   const rContainer = $("ticketReplies");
   if (!t.replies || t.replies.length === 0) {
-    rContainer.innerHTML = `<p style="font-size: 13px; color: #94a3b8; font-style: italic; text-align: center;">No replies yet.</p>`;
+    rContainer.innerHTML = `<p style="font-size: 13px; color: var(--muted); font-style: italic; text-align: center;">No replies yet.</p>`;
   } else {
     rContainer.innerHTML = t.replies.map(r => {
       const isAdminReply = r.sender === 'Admin' || r.sender === 'Bookkeeper';
