@@ -5,35 +5,135 @@ const seedUsers = [
   { id: 3, name: "Juan Dela Cruz", username: "student", password: "student123", role: "Student", studentNum: "2024-00123", section: "BSIT 2-A", is_archived: false }
 ];
 
-// ---- Seed Books Template (5 per category) ----
+// ---- Seed Books (Fixed Image Links) ----
 const seedBooks = [
-  // --- IT (5 Books) ---
-  { id: 1, title: "Book Title 1", cat: "IT", copies: 5, author: "Author Name", published: "2022", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 1." },
-  { id: 2, title: "Book Title 2", cat: "IT", copies: 8, author: "Author Name", published: "2021", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 2." },
-  { id: 3, title: "Book Title 3", cat: "IT", copies: 6, author: "Author Name", published: "2023", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 3." },
-  { id: 4, title: "Book Title 4", cat: "IT", copies: 7, author: "Author Name", published: "2020", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 4." },
-  { id: 5, title: "Book Title 5", cat: "IT", copies: 4, author: "Author Name", published: "2024", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 5." },
+  // --- INFORMATION TECHNOLOGY (5 Books) ---
+  { 
+    id: 1, title: "Introduction to Computer Science", cat: "IT", copies: 5, author: "Jean-Claude Franchiotti", published: "2024", 
+    cover_url: "https://covers.openlibrary.org/b/isbn/9781711471839-L.jpg?default=false", 
+    reference_url: "https://openstax.org/details/books/introduction-computer-science", icon: "💻", 
+    summary: "An introductory survey of algorithms, data structures, computer systems, software development, cybersecurity, cloud computing, and machine learning, with practical exercises." 
+  },
+  { 
+    id: 2, title: "Foundations of Information Systems", cat: "IT", copies: 8, author: "Mahesh S. Raisinghani", published: "2025", 
+    cover_url: "https://pictures.abebooks.com/isbn/9781711472959-us.jpg", 
+    reference_url: "https://openstax.org/details/books/foundations-information-systems", icon: "💻", 
+    summary: "Introduces hardware, software, databases, networks, and how organizations collect, process, store, and use information." 
+  },
+  { 
+    id: 3, title: "Principles of Data Science", cat: "IT", copies: 6, author: "Shaun V. Ault", published: "2025", 
+    cover_url: "https://it-ebooks.dev/img/books/p/principles-of-data-science.big.webp", 
+    reference_url: "https://openstax.org/details/books/principles-data-science", icon: "💻", 
+    summary: "Explains data science principles through examples, Python code, datasets, and exercises, including discussions of data ethics and artificial intelligence." 
+  },
+  { 
+    id: 4, title: "Introduction to Python Programming", cat: "IT", copies: 7, author: "Udayan Das", published: "2024", 
+    cover_url: "https://media.oceanofpdf.com/2024/06/PDF-EPUB-Introduction-to-Python-Programming-by-Udayan-Das-Download.jpg", 
+    reference_url: "https://openstax.org/details/books/introduction-python-programming", icon: "💻", 
+    summary: "Teaches Python fundamentals and problem-solving using activities, examples from multiple fields, and an interactive code runner." 
+  },
+  { 
+    id: 5, title: "Python Crash Course, 3rd Edition", cat: "IT", copies: 4, author: "Eric Matthes", published: "2023", 
+    cover_url: "https://www.oreilly.com/library/cover/9781098156664/248w/?format=webp", 
+    reference_url: "https://www.oreilly.com/library/view/python-crash-course/9781098156664/", icon: "💻", 
+    summary: "A hands-on introduction to Python fundamentals followed by projects involving a game, data visualization, and a web application." 
+  },
 
-  // --- Science (5 Books) ---
-  { id: 6, title: "Book Title 6", cat: "Science", copies: 9, author: "Author Name", published: "2021", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 6." },
-  { id: 7, title: "Book Title 7", cat: "Science", copies: 7, author: "Author Name", published: "2020", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 7." },
-  { id: 8, title: "Book Title 8", cat: "Science", copies: 10, author: "Author Name", published: "2022", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 8." },
-  { id: 9, title: "Book Title 9", cat: "Science", copies: 12, author: "Author Name", published: "2018", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 9." },
-  { id: 10, title: "Book Title 10", cat: "Science", copies: 8, author: "Author Name", published: "2023", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 10." },
+  // --- SCIENCE (5 Books) ---
+  { 
+    id: 6, title: "Astronomy 2e", cat: "Science", copies: 9, author: "Andrew Fraknoi", published: "2022", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzcxMCwicHVyIjoiYmxvYl9pZCJ9fQ==--cbdb306abe88eedb165c11e31d22ee11edb4f5f0/cover.png", 
+    reference_url: "https://openstax.org/details/books/astronomy-2e", icon: "🧬", 
+    summary: "Introduces the solar system, stars, galaxies, and the universe using accessible explanations, illustrations, and everyday analogies." 
+  },
+  { 
+    id: 7, title: "Anatomy and Physiology 2e", cat: "Science", copies: 7, author: "J. Gordon Betts", published: "2022", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzcwOSwicHVyIjoiYmxvYl9pZCJ9fQ==--abf1ae6641ab7cf070fec53710db59fa5ce44e18/cover.png", 
+    reference_url: "https://openstax.org/details/books/anatomy-and-physiology-2e", icon: "🧬", 
+    summary: "A body-systems-based introduction to human anatomy and physiology for life science and health students, supported by illustrations and interactive resources." 
+  },
+  { 
+    id: 8, title: "College Physics 2e", cat: "Science", copies: 10, author: "Paul Peter Urone", published: "2022", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTA5ODMsInB1ciI6ImJsb2JfaWQifX0=--c17d4f0134e3e83baa88b3c1026dac6e9d2bdd1f/cover.png", 
+    reference_url: "https://openstax.org/details/books/college-physics-2e", icon: "🧬", 
+    summary: "Presents algebra-based physics through conceptual explanations, quantitative problems, and practical applications, including biological and medical examples." 
+  },
+  { 
+    id: 9, title: "Organic Chemistry: A Tenth Edition", cat: "Science", copies: 12, author: "John McMurry", published: "2023", 
+    cover_url: "https://images.weserv.nl/?url=covers.vitalsource.com%2Fvbid%2F978-1-961584-30-3%2Fwidth%2F320%3Fstyle%3Dpreview&output=jpg", 
+    reference_url: "https://openstax.org/details/books/organic-chemistry", icon: "🧬", 
+    summary: "A two-semester organic chemistry text organized around functional groups, with worked examples and applications of chemical concepts." 
+  },
+  { 
+    id: 10, title: "Introduction to Behavioral Neuroscience", cat: "Science", copies: 8, author: "Elizabeth D. Kirby", published: "2024", 
+    cover_url: "https://u.osu.edu/kirbylab/files/2024/11/book-cover-image-233x300.png", 
+    reference_url: "https://openstax.org/details/books/introduction-behavioral-neuroscience", icon: "🧬", 
+    summary: "Examines how the nervous system and environment influence behavior, thought, movement, and emotion, introducing neuroscience research and experiments." 
+  },
 
-  // --- English (5 Books) ---
-  { id: 11, title: "Book Title 11", cat: "English", copies: 10, author: "Author Name", published: "2021", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 11." },
-  { id: 12, title: "Book Title 12", cat: "English", copies: 8, author: "Author Name", published: "2022", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 12." },
-  { id: 13, title: "Book Title 13", cat: "English", copies: 6, author: "Author Name", published: "2020", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 13." },
-  { id: 14, title: "Book Title 14", cat: "English", copies: 9, author: "Author Name", published: "2019", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 14." },
-  { id: 15, title: "Book Title 15", cat: "English", copies: 7, author: "Author Name", published: "2023", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 15." },
+  // --- ENGLISH (5 Books) ---
+  { 
+    id: 11, title: "Writing Guide with Handbook", cat: "English", copies: 10, author: "Michelle Bachelor Robinson", published: "2021", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzMwMywicHVyIjoiYmxvYl9pZCJ9fQ==--2724ca58f77d6e837f243312ef248b80c5d83530/cover.jpg", 
+    reference_url: "https://openstax.org/details/books/writing-guide", icon: "📚", 
+    summary: "Covers writing processes, rhetorical genres, grammar, editing, usage, and citation for introductory composition courses." 
+  },
+  { 
+    id: 12, title: "Advanced Community College ESL Composition", cat: "English", copies: 8, author: "Edgar Perez", published: "2020", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTUzMywicHVyIjoiYmxvYl9pZCJ9fQ==--328da93946fa7876337a1089ef42e4f971ac1334/Cover-Picture.jpg", 
+    reference_url: "https://human.libretexts.org/Bookshelves/Languages/English_as_a_Second_Language/Advanced_Community_College_ESL_Composition_-_An_Integrated_Skills_Approach_(Perez_et_al.)", icon: "📚", 
+    summary: "An advanced English-as-a-second-language composition text that integrates reading, academic writing, research, and language skills." 
+  },
+  { 
+    id: 13, title: "Culturally Responsive Composition", cat: "English", copies: 6, author: "Andy Gurevich", published: "2023", 
+    cover_url: "https://images.weserv.nl/?url=mhcc.pressbooks.pub%2Fapp%2Fuploads%2Fsites%2F42%2F2023%2F07%2FCulturally-Responsive-Composition.png", 
+    reference_url: "https://mhcc.pressbooks.pub/culturallyresponsivecomposition/", icon: "📚", 
+    summary: "A guide to academic writing and the stages of essay creation, incorporating cultural responsiveness, exercises, and downloadable handouts." 
+  },
+  { 
+    id: 14, title: "English 102 Book with English 105 supplemental", cat: "English", copies: 9, author: "Octaviano Gutierrez", published: "2023", 
+    cover_url: "https://images.weserv.nl/?url=openwa.pressbooks.pub%2Fapp%2Fuploads%2Fsites%2F412%2F2023%2F09%2FEnglish102cover-2.png", 
+    reference_url: "https://openwa.pressbooks.pub/octavianog/", icon: "📚", 
+    summary: "A composition and literature resource featuring short stories, fairy tales, literary criticism, and writing-process materials." 
+  },
+  { 
+    id: 15, title: "Advanced Grammar in Use, 4th Edition", cat: "English", copies: 7, author: "Martin Hewings", published: "2023", 
+    cover_url: "https://assets.cambridge.org/97811089/20216/large_cover/9781108920216i.jpg", 
+    reference_url: "https://www.cambridge.org/us/cambridgeenglish/catalog/grammar-vocabulary-and-pronunciation/advanced-grammar-use-4th-edition", icon: "📚", 
+    summary: "A reference and practice book for advanced English learners, covering grammar in 105 units, including academic grammar, with answers and online tests." 
+  },
 
-  // --- Social Studies (5 Books) ---
-  { id: 16, title: "Book Title 16", cat: "Social Studies", copies: 5, author: "Author Name", published: "2020", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 16." },
-  { id: 17, title: "Book Title 17", cat: "Social Studies", copies: 7, author: "Author Name", published: "2021", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 17." },
-  { id: 18, title: "Book Title 18", cat: "Social Studies", copies: 6, author: "Author Name", published: "2023", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 18." },
-  { id: 19, title: "Book Title 19", cat: "Social Studies", copies: 8, author: "Author Name", published: "2019", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 19." },
-  { id: 20, title: "Book Title 20", cat: "Social Studies", copies: 5, author: "Author Name", published: "2024", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 20." }
+  // --- SOCIAL STUDIES (5 Books) ---
+  { 
+    id: 16, title: "Introduction to Political Science", cat: "Social Studies", copies: 5, author: "Mark Carl Rom", published: "2022", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzY5OCwicHVyIjoiYmxvYl9pZCJ9fQ==--05c889d117e85faf639c38d080ff2ec3f34736e4/cover.png", 
+    reference_url: "https://openstax.org/details/books/introduction-political-science", icon: "🌍", 
+    summary: "Introduces political systems around the world and examines political action, civic participation, and how political realities develop." 
+  },
+  { 
+    id: 17, title: "Introduction to Anthropology", cat: "Social Studies", copies: 7, author: "Jennifer Hasty", published: "2022", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ1NywicHVyIjoiYmxvYl9pZCJ9fQ==--da90654ff0429adaf1d9822d52da419b54721b9f/cover.jpg", 
+    reference_url: "https://openstax.org/details/books/introduction-anthropology", icon: "🌍", 
+    summary: "Introduces the four fields of anthropology and explores human cultures, biological diversity, archaeology, language, and inequality." 
+  },
+  { 
+    id: 18, title: "Introduction to Sociology 3e", cat: "Social Studies", copies: 6, author: "Tonja R. Conerly", published: "2021", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzA5NywicHVyIjoiYmxvYl9pZCJ9fQ==--76cb22adcac26d507ee86e5de7cea2226d1a26be/cover.jpg", 
+    reference_url: "https://openstax.org/details/books/introduction-sociology-3e", icon: "🌍", 
+    summary: "Explores sociological theories, culture, institutions, social interactions, discrimination, and the structure of society." 
+  },
+  { 
+    id: 19, title: "World History, Volume 1: to 1500", cat: "Social Studies", copies: 8, author: "Ann Kordas", published: "2023", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6NjU0NywicHVyIjoiYmxvYl9pZCJ9fQ==--3058e70f8044c8879c9e2d07354eed7d0059dee0/cover.png", 
+    reference_url: "https://openstax.org/details/books/world-history-volume-1", icon: "🌍", 
+    summary: "Surveys world history through 1500, comparing societies and experiences across regions and incorporating primary sources." 
+  },
+  { 
+    id: 20, title: "World History, Volume 2: from 1400", cat: "Social Studies", copies: 5, author: "Ann Kordas", published: "2022", 
+    cover_url: "https://open.umn.edu/rails/active_storage/blobs/redirect/eyJfcmFpbHMiOnsiZGF0YSI6NDU0MCwicHVyIjoiYmxvYl9pZCJ9fQ==--e1f6915da3f3faf436475a9e62b644991194ff19/cover.png", 
+    reference_url: "https://openstax.org/details/books/world-history-volume-2", icon: "🌍", 
+    summary: "Surveys global history from 1400 onward, including exploration, colonization, revolutions, wars, and globalization, using diverse perspectives and primary sources." 
+  }
 ];
 
 // ---- Load State ----
