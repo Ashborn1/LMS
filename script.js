@@ -5,6 +5,37 @@ const seedUsers = [
   { id: 3, name: "Juan Dela Cruz", username: "student", password: "student123", role: "Student", studentNum: "2024-00123", section: "BSIT 2-A", is_archived: false }
 ];
 
+// ---- Seed Books Template (5 per category) ----
+const seedBooks = [
+  // --- IT (5 Books) ---
+  { id: 1, title: "Book Title 1", cat: "IT", copies: 5, author: "Author Name", published: "2022", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 1." },
+  { id: 2, title: "Book Title 2", cat: "IT", copies: 8, author: "Author Name", published: "2021", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 2." },
+  { id: 3, title: "Book Title 3", cat: "IT", copies: 6, author: "Author Name", published: "2023", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 3." },
+  { id: 4, title: "Book Title 4", cat: "IT", copies: 7, author: "Author Name", published: "2020", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 4." },
+  { id: 5, title: "Book Title 5", cat: "IT", copies: 4, author: "Author Name", published: "2024", cover_url: "", reference_url: "", icon: "💻", summary: "Summary for Book 5." },
+
+  // --- Science (5 Books) ---
+  { id: 6, title: "Book Title 6", cat: "Science", copies: 9, author: "Author Name", published: "2021", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 6." },
+  { id: 7, title: "Book Title 7", cat: "Science", copies: 7, author: "Author Name", published: "2020", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 7." },
+  { id: 8, title: "Book Title 8", cat: "Science", copies: 10, author: "Author Name", published: "2022", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 8." },
+  { id: 9, title: "Book Title 9", cat: "Science", copies: 12, author: "Author Name", published: "2018", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 9." },
+  { id: 10, title: "Book Title 10", cat: "Science", copies: 8, author: "Author Name", published: "2023", cover_url: "", reference_url: "", icon: "🧬", summary: "Summary for Book 10." },
+
+  // --- English (5 Books) ---
+  { id: 11, title: "Book Title 11", cat: "English", copies: 10, author: "Author Name", published: "2021", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 11." },
+  { id: 12, title: "Book Title 12", cat: "English", copies: 8, author: "Author Name", published: "2022", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 12." },
+  { id: 13, title: "Book Title 13", cat: "English", copies: 6, author: "Author Name", published: "2020", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 13." },
+  { id: 14, title: "Book Title 14", cat: "English", copies: 9, author: "Author Name", published: "2019", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 14." },
+  { id: 15, title: "Book Title 15", cat: "English", copies: 7, author: "Author Name", published: "2023", cover_url: "", reference_url: "", icon: "📚", summary: "Summary for Book 15." },
+
+  // --- Social Studies (5 Books) ---
+  { id: 16, title: "Book Title 16", cat: "Social Studies", copies: 5, author: "Author Name", published: "2020", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 16." },
+  { id: 17, title: "Book Title 17", cat: "Social Studies", copies: 7, author: "Author Name", published: "2021", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 17." },
+  { id: 18, title: "Book Title 18", cat: "Social Studies", copies: 6, author: "Author Name", published: "2023", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 18." },
+  { id: 19, title: "Book Title 19", cat: "Social Studies", copies: 8, author: "Author Name", published: "2019", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 19." },
+  { id: 20, title: "Book Title 20", cat: "Social Studies", copies: 5, author: "Author Name", published: "2024", cover_url: "", reference_url: "", icon: "🌍", summary: "Summary for Book 20." }
+];
+
 // ---- Load State ----
 let users = [];
 let books = [];
@@ -143,7 +174,6 @@ $("loginForm").onsubmit = (e) => {
   
   const u = $("user").value.trim();
   const p = $("pass").value;
-  // Prevent archived users from logging in
   const found = users.find(x => x.username === u && x.password === p && !x.is_archived);
   
   if (found) {
@@ -313,7 +343,6 @@ function showApp() {
   $("ticketTabs").style.display = isAdmin ? "flex" : "none";
   $("thQueue").style.display = isAdmin ? "table-cell" : "none";
 
-  // Default view based on role
   if (isAdmin) switchView("users");
   else if (isBookkeeper) switchView("requests");
   else switchView("catalog");
@@ -349,7 +378,6 @@ function renderGuidelines() {
   const generalRulesTitle = $("generalRulesTitle");
   let generalRulesHtml = "";
 
-  // Dynamic quick rules based on role
   if (role === "Student") {
     generalRulesTitle.textContent = "📌 Student Quick Rules";
     generalRulesHtml = `
@@ -378,12 +406,10 @@ function renderGuidelines() {
 
   generalRulesDiv.innerHTML = generalRulesHtml;
   
-  // Hide all detailed role cards first
   $("guide-admin").style.display = "none";
   $("guide-bookkeeper").style.display = "none";
   $("guide-student").style.display = "none";
 
-  // Show only the detailed card matching the current user's role
   if (role === "Admin") {
     $("guide-admin").style.display = "block";
   } else if (role === "Bookkeeper") {
@@ -419,13 +445,26 @@ function toggleViewArchivedHistory() {
 function renderCatalog() {
   const q = $("search").value.toLowerCase();
   const cat = $("catFilter").value;
+  const yearFilter = $("yearFilter").value;
   const sortBy = $("sortCatalog").value;
 
-  let filtered = books.filter(b => !b.is_archived && (
-    !q || b.title.toLowerCase().includes(q) || b.cat.toLowerCase().includes(q) ||
-    (b.author && b.author.toLowerCase().includes(q)) || (b.summary && b.summary.toLowerCase().includes(q)) ||
-    (b.published && b.published.toString().toLowerCase().includes(q))
-  ) && (cat === "all" || b.cat === cat));
+  let filtered = books.filter(b => {
+    const matchArchived = !b.is_archived;
+    const matchSearch = !q || b.title.toLowerCase().includes(q) || b.cat.toLowerCase().includes(q) ||
+                        (b.author && b.author.toLowerCase().includes(q)) || (b.summary && b.summary.toLowerCase().includes(q)) ||
+                        (b.published && b.published.toString().toLowerCase().includes(q));
+    const matchCat = cat === "all" || b.cat === cat;
+    
+    // Year Range Filter Logic
+    let matchYear = true;
+    if (yearFilter === "2020-2026") {
+      matchYear = (b.published >= 2020 && b.published <= 2026);
+    } else if (yearFilter !== "all") {
+      matchYear = (b.published == yearFilter);
+    }
+
+    return matchArchived && matchSearch && matchCat && matchYear;
+  });
 
   filtered.sort((a, b) => {
     if (sortBy === "title-asc") return a.title.localeCompare(b.title);
@@ -442,6 +481,15 @@ function renderCatalog() {
   $("books").innerHTML = filtered.map(b => {
     const avail = b.copies - borrowedCount(b.id);
     const theme = getThemeClass(b.cat);
+    
+    // UNIFORM IMAGE CONTAINER
+    const coverHtml = `
+      <div class="book-cover-container">
+        ${b.cover_url 
+          ? `<img src="${b.cover_url}" alt="${b.title} cover" onerror="this.style.display='none'; this.parentElement.innerHTML = '<span style=\\'font-size: 64px;\\'>${b.icon}</span>';">` 
+          : `<span style="font-size: 64px;">${b.icon}</span>`}
+      </div>
+    `;
     
     let actionBtns = "";
     
@@ -463,6 +511,7 @@ function renderCatalog() {
     }
 
     return `<div class="book ${theme}" onclick="openBookInfo(${b.id})">
+      ${coverHtml}
       <span class="cat">${b.cat}</span>
       <h3>${b.title}</h3>
       <span class="avail">${avail} of ${b.copies} available</span>
@@ -473,13 +522,21 @@ function renderCatalog() {
 
 $("search").oninput = renderCatalog;
 $("catFilter").onchange = renderCatalog;
+$("yearFilter").onchange = renderCatalog;
 $("sortCatalog").onchange = renderCatalog;
 
 function openBookInfo(id) {
   const b = books.find(x => x.id === id);
   if (!b) return;
-  $("biCover").textContent = b.icon;
-  $("biCover").className = `book-cover-large ${getThemeClass(b.cat)}`;
+  
+  if (b.cover_url) {
+    $("biCover").innerHTML = `<img src="${b.cover_url}" alt="Cover" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML = '${b.icon}';">`;
+    $("biCover").className = "book-cover-large";
+  } else {
+    $("biCover").innerHTML = b.icon;
+    $("biCover").className = `book-cover-large ${getThemeClass(b.cat)}`;
+  }
+  
   $("biTitle").textContent = b.title;
   $("biCategory").textContent = b.cat;
   $("biCategory").className = `cat ${getThemeClass(b.cat)}`;
@@ -487,6 +544,15 @@ function openBookInfo(id) {
   $("biPublished").textContent = b.published || "Unknown";
   $("biCopies").textContent = `${b.copies} copies in library`;
   $("biSummary").textContent = b.summary || "No summary provided.";
+  
+  // Reference Link Logic
+  if (b.reference_url) {
+    $("biReferenceDiv").style.display = "block";
+    $("biReferenceLink").href = b.reference_url;
+  } else {
+    $("biReferenceDiv").style.display = "none";
+  }
+
   $("bookInfoModal").hidden = false;
 }
 
@@ -1107,6 +1173,8 @@ function openBookForm(id = null) {
     
     $("bfAuthor").value = b.author || "";
     $("bfPublished").value = b.published || "";
+    $("bfCoverUrl").value = b.cover_url || "";
+    $("bfReferenceUrl").value = b.reference_url || "";
     $("bfIcon").value = b.icon || "📘";
     $("bfSummary").value = b.summary || "";
   } else {
@@ -1118,6 +1186,8 @@ function openBookForm(id = null) {
     $("bfStats").innerHTML = ""; 
     $("bfAuthor").value = "";
     $("bfPublished").value = new Date().getFullYear();
+    $("bfCoverUrl").value = "";
+    $("bfReferenceUrl").value = "";
     $("bfIcon").value = "📘";
     $("bfSummary").value = "";
   }
@@ -1146,6 +1216,8 @@ function saveBook() {
   const published = $("bfPublished").value;
   const icon = $("bfIcon").value;
   const summary = $("bfSummary").value;
+  const coverUrl = $("bfCoverUrl").value.trim();
+  const referenceUrl = $("bfReferenceUrl").value.trim();
 
   if (!title) {
     showConfirm("Missing Field", "Title is required.", "Okay", () => {});
@@ -1158,10 +1230,11 @@ function saveBook() {
       return;
     }
     const b = books.find(x => x.id == id);
-    b.title = title; b.cat = cat; b.copies = copies; b.author = author; b.published = published; b.icon = icon; b.summary = summary;
+    b.title = title; b.cat = cat; b.copies = copies; b.author = author; b.published = published; 
+    b.icon = icon; b.summary = summary; b.cover_url = coverUrl; b.reference_url = referenceUrl;
   } else {
     books.push({
-      id: Date.now(), title, cat, copies, author, published, icon, summary, is_archived: false
+      id: Date.now(), title, cat, copies, author, published, icon, summary, cover_url: coverUrl, reference_url: referenceUrl, is_archived: false
     });
   }
   save();
@@ -1488,7 +1561,13 @@ async function initApp() {
       users = data.users;
     }
 
-    books = data.books || [];
+    if (!data.books || data.books.length === 0) {
+      books = seedBooks;
+      needsSave = true;
+    } else {
+      books = data.books;
+    }
+
     loans = data.loans || [];
     history = data.history || [];
     requests = data.requests || [];
