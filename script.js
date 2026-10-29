@@ -1,8 +1,8 @@
 // ---- Seed Users (Fallback only) ----
 const seedUsers = [
-  { id: 1, name: "System Admin", username: "admin", password: "admin123", role: "Admin" },
-  { id: 2, name: "Head Bookkeeper", username: "keeper", password: "keeper123", role: "Bookkeeper" },
-  { id: 3, name: "Juan Dela Cruz", username: "student", password: "student123", role: "Student", studentNum: "2024-00123", section: "BSIT 2-A" }
+  { id: 1, name: "System Admin", username: "admin", password: "admin123", role: "Admin", is_archived: false },
+  { id: 2, name: "Head Bookkeeper", username: "keeper", password: "keeper123", role: "Bookkeeper", is_archived: false },
+  { id: 3, name: "Juan Dela Cruz", username: "student", password: "student123", role: "Student", studentNum: "2024-00123", section: "BSIT 2-A", is_archived: false }
 ];
 
 // ---- Load State ----
@@ -19,6 +19,12 @@ let currentUser = null;
 let currentTicketView = 'ongoing'; 
 let minCopiesAllowed = 1;
 let pendingConfirmAction = null;
+
+// Archived View Toggles
+let viewArchivedUsers = false;
+let viewArchivedBooks = false;
+let viewArchivedHistory = false;
+
 const $ = id => document.getElementById(id);
 
 // ---- THEME DROPDOWN LOGIC ----
@@ -62,7 +68,6 @@ function setTheme(theme) {
 
 setTheme(savedTheme);
 
-// ---- SAVE FUNCTION (With exact error output) ----
 async function save() {
   if (currentUser) {
     localStorage.setItem("session", JSON.stringify(currentUser));
@@ -92,15 +97,12 @@ async function save() {
       const result = JSON.parse(text);
       if (result.error) {
         alert("MySQL Save Error:\n" + result.error);
-        console.error("Database Save Error:", result.error);
       }
     } catch (e) {
-      alert("PHP Error:\n" + text.substring(0, 300) + "...\n\nCheck F12 Console for details.");
-      console.error("Raw PHP Output:", text);
+      alert("PHP Error:\n" + text.substring(0, 300));
     }
   } catch (error) {
     alert("Failed to connect to api.php. Is XAMPP running?");
-    console.error("Network error:", error);
   }
 }
 
@@ -114,7 +116,6 @@ function getThemeClass(cat) {
 
 const borrowedCount = id => loans.filter(l => l.bookId === id).length;
 
-// ---- GLOBAL CONFIRM MODAL ----
 function showConfirm(title, message, confirmText, callback) {
   $("gcTitle").textContent = title;
   $("gcMessage").textContent = message;
@@ -136,14 +137,14 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// ---- AUTHENTICATION ----
 $("loginForm").onsubmit = (e) => {
   e.preventDefault();
   $("loginErr").textContent = "";
   
   const u = $("user").value.trim();
   const p = $("pass").value;
-  const found = users.find(x => x.username === u && x.password === p);
+  // Prevent archived users from logging in
+  const found = users.find(x => x.username === u && x.password === p && !x.is_archived);
   
   if (found) {
     currentUser = found;
@@ -161,7 +162,6 @@ $("logout").onclick = () => {
   $("app").hidden = true;
 };
 
-// ---- GUEST TICKETS ----
 function openAuthTicketModal(e) {
   e.preventDefault();
   $("authName").value = "";
@@ -313,13 +313,14 @@ function showApp() {
   $("ticketTabs").style.display = isAdmin ? "flex" : "none";
   $("thQueue").style.display = isAdmin ? "table-cell" : "none";
 
+  // Default view based on role
   if (isAdmin) switchView("users");
   else if (isBookkeeper) switchView("requests");
   else switchView("catalog");
 }
 
 function switchView(viewName) {
-  ['catalog', 'my-requests', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
+  ['info', 'catalog', 'my-requests', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
     $("view-" + v).hidden = true;
     const navBtn = $("nav" + v.charAt(0).toUpperCase() + v.slice(1).replace('-', ''));
     if (navBtn) navBtn.classList.remove("active");
@@ -329,6 +330,7 @@ function switchView(viewName) {
   const activeBtn = $("nav" + viewName.charAt(0).toUpperCase() + viewName.slice(1).replace('-', ''));
   if (activeBtn) activeBtn.classList.add("active");
 
+  if (viewName === 'info') renderGuidelines();
   if (viewName === 'catalog') renderCatalog();
   if (viewName === 'my-requests') renderMyRequests();
   if (viewName === 'requests') renderRequests();
@@ -339,22 +341,91 @@ function switchView(viewName) {
   if (viewName === 'tickets') renderTickets();
 }
 
+// ---- GUIDELINES RENDER ----
+function renderGuidelines() {
+  const role = currentUser.role;
+  
+  const generalRulesDiv = $("generalRulesList");
+  const generalRulesTitle = $("generalRulesTitle");
+  let generalRulesHtml = "";
+
+  // Dynamic quick rules based on role
+  if (role === "Student") {
+    generalRulesTitle.textContent = "📌 Student Quick Rules";
+    generalRulesHtml = `
+      <li><strong>Borrowing Limit:</strong> You can borrow a maximum of <strong>5 books total</strong> at any given time.</li>
+      <li><strong>Title Limit:</strong> You can only borrow <strong>1 copy per book title</strong>.</li>
+      <li><strong>Loan Period:</strong> Standard borrowing is <strong>14 days</strong>.</li>
+      <li><strong>Extensions:</strong> Request extensions before the due date with a <strong>valid reason</strong>.</li>
+      <li><strong>Waitlist:</strong> If a book is out of stock, join the waitlist.</li>
+    `;
+  } else if (role === "Bookkeeper") {
+    generalRulesTitle.textContent = "📌 Bookkeeper Quick Rules";
+    generalRulesHtml = `
+      <li><strong>Enforce Limits:</strong> Ensure students do not exceed <strong>5 active loans</strong> or request more than 1 copy of the same title.</li>
+      <li><strong>Extensions:</strong> Strictly review the student's reason before approving extensions.</li>
+      <li><strong>Approvals:</strong> Set due dates (14 days standard) when accepting borrow requests.</li>
+      <li><strong>Returns:</strong> Process returned books promptly to update inventory.</li>
+    `;
+  } else if (role === "Admin") {
+    generalRulesTitle.textContent = "📌 Admin Quick Rules";
+    generalRulesHtml = `
+      <li><strong>Account Management:</strong> Use "Archive" instead of deleting to preserve records.</li>
+      <li><strong>Support:</strong> Monitor and respond to support tickets for account recovery.</li>
+      <li><strong>Oversight:</strong> Review archived history and records when necessary.</li>
+    `;
+  }
+
+  generalRulesDiv.innerHTML = generalRulesHtml;
+  
+  // Hide all detailed role cards first
+  $("guide-admin").style.display = "none";
+  $("guide-bookkeeper").style.display = "none";
+  $("guide-student").style.display = "none";
+
+  // Show only the detailed card matching the current user's role
+  if (role === "Admin") {
+    $("guide-admin").style.display = "block";
+  } else if (role === "Bookkeeper") {
+    $("guide-bookkeeper").style.display = "block";
+  } else if (role === "Student") {
+    $("guide-student").style.display = "block";
+  }
+}
+
+// ---- ARCHIVED TOGGLE FUNCTIONS ----
+function toggleViewArchivedUsers() {
+  viewArchivedUsers = !viewArchivedUsers;
+  $("btnViewArchivedUsers").textContent = viewArchivedUsers ? "Show Active" : "Show Archived";
+  $("btnViewArchivedUsers").className = viewArchivedUsers ? "small" : "ghost small";
+  renderManageUsers();
+}
+
+function toggleViewArchivedBooks() {
+  viewArchivedBooks = !viewArchivedBooks;
+  $("btnViewArchivedBooks").textContent = viewArchivedBooks ? "Show Active" : "Show Archived";
+  $("btnViewArchivedBooks").className = viewArchivedBooks ? "small" : "ghost small";
+  renderManageBooks();
+}
+
+function toggleViewArchivedHistory() {
+  viewArchivedHistory = !viewArchivedHistory;
+  $("btnViewArchivedHistory").textContent = viewArchivedHistory ? "Show Active" : "Show Archived";
+  $("btnViewArchivedHistory").className = viewArchivedHistory ? "small" : "ghost small";
+  renderHistory();
+}
+
 // ---- CATALOG & BOOK INFO ----
 function renderCatalog() {
   const q = $("search").value.toLowerCase();
   const cat = $("catFilter").value;
   const sortBy = $("sortCatalog").value;
 
-  let filtered = books.filter(b => {
-    const matchSearch = !q || 
-                        b.title.toLowerCase().includes(q) || 
-                        b.cat.toLowerCase().includes(q) ||
-                        (b.author && b.author.toLowerCase().includes(q)) ||
-                        (b.summary && b.summary.toLowerCase().includes(q)) ||
-                        (b.published && b.published.toString().toLowerCase().includes(q));
-    const matchCat = cat === "all" || b.cat === cat;
-    return matchSearch && matchCat;
-  });
+  let filtered = books.filter(b => !b.is_archived && (
+    !q || b.title.toLowerCase().includes(q) || b.cat.toLowerCase().includes(q) ||
+    (b.author && b.author.toLowerCase().includes(q)) || (b.summary && b.summary.toLowerCase().includes(q)) ||
+    (b.published && b.published.toString().toLowerCase().includes(q))
+  ) && (cat === "all" || b.cat === cat));
 
   filtered.sort((a, b) => {
     if (sortBy === "title-asc") return a.title.localeCompare(b.title);
@@ -504,7 +575,6 @@ function cancelRequest(reqId) {
   });
 }
 
-// ---- BOOKKEEPER: REQUESTS ----
 function renderRequests() {
   $("noRequests").hidden = requests.length > 0;
   $("requestsBody").innerHTML = requests.map(r => {
@@ -601,6 +671,7 @@ function submitReject() {
   req.status = "Rejected";
   req.reason = reason;
   req.dateProcessed = new Date().toISOString().slice(0, 10);
+  req.is_archived = false; 
   rejections.unshift(req);
   
   requests.splice(reqIndex, 1);
@@ -835,6 +906,7 @@ function returnBook(loanId) {
   
   const loan = loans[idx];
   loan.returnedAt = new Date().toISOString().slice(0, 10);
+  loan.is_archived = false;
   
   history.unshift(loan);
   loans.splice(idx, 1);
@@ -842,12 +914,13 @@ function returnBook(loanId) {
   renderLoans();
 }
 
+// ---- HISTORY & ARCHIVING ----
 function renderHistory() {
   const isStudent = currentUser.role === 'Student';
   
   if (isStudent) {
-    const myHistory = history.filter(h => h.borrowerId === currentUser.id).map(h => ({...h, type: 'loan'}));
-    const myRejections = rejections.filter(r => r.studentId === currentUser.id).map(r => ({...r, type: 'reject'}));
+    const myHistory = history.filter(h => h.borrowerId === currentUser.id && !h.is_archived).map(h => ({...h, type: 'loan'}));
+    const myRejections = rejections.filter(r => r.studentId === currentUser.id && !r.is_archived).map(r => ({...r, type: 'reject'}));
     
     let combined = [...myHistory, ...myRejections].sort((a, b) => {
       const dateA = a.type === 'loan' ? new Date(a.returnedAt) : new Date(a.dateProcessed);
@@ -880,8 +953,8 @@ function renderHistory() {
     
   } else {
     const combinedHistory = [
-      ...history.map(h => ({ ...h, itemType: 'loan' })),
-      ...rejections.map(r => ({ ...r, itemType: 'rejection' }))
+      ...history.filter(h => viewArchivedHistory ? h.is_archived : !h.is_archived).map(h => ({ ...h, itemType: 'loan' })),
+      ...rejections.filter(r => viewArchivedHistory ? r.is_archived : !r.is_archived).map(r => ({ ...r, itemType: 'rejection' }))
     ].sort((a, b) => {
       const dateA = a.itemType === 'loan' ? new Date(a.returnedAt) : new Date(a.dateProcessed);
       const dateB = b.itemType === 'loan' ? new Date(b.returnedAt) : new Date(b.dateProcessed);
@@ -904,7 +977,10 @@ function renderHistory() {
           <td>
             <div class="actions-cell">
               <button class="ghost small" onclick="viewLoanDetails(${item.id}, true)">View</button>
-              <button class="ghost danger small" onclick="deleteHistory(${item.id})">Delete</button>
+              ${viewArchivedHistory 
+                ? `<button class="ghost small" onclick="unarchiveHistory(${item.id})">Unarchive</button>`
+                : `<button class="ghost danger small" onclick="archiveHistory(${item.id})">Archive</button>`
+              }
             </div>
           </td>
         </tr>`;
@@ -917,7 +993,10 @@ function renderHistory() {
           <td>
             <div class="actions-cell">
               <button class="ghost small" onclick="viewRejection(${item.id})">View</button>
-              <button class="ghost danger small" onclick="deleteRejection(${item.id})">Delete</button>
+              ${viewArchivedHistory 
+                ? `<button class="ghost small" onclick="unarchiveRejection(${item.id})">Unarchive</button>`
+                : `<button class="ghost danger small" onclick="archiveRejection(${item.id})">Archive</button>`
+              }
             </div>
           </td>
         </tr>`;
@@ -926,20 +1005,36 @@ function renderHistory() {
   }
 }
 
-function deleteHistory(id) {
-  showConfirm("Delete History", "Are you sure you want to permanently delete this history record?", "Delete", () => {
-    history = history.filter(h => h.id !== id);
+function archiveHistory(id) {
+  showConfirm("Archive History", "Are you sure you want to archive this record?", "Archive", () => {
+    const h = history.find(x => x.id === id);
+    if (h) h.is_archived = true;
     save();
     renderHistory();
   });
 }
 
-function deleteRejection(id) {
-  showConfirm("Delete Record", "Are you sure you want to delete this rejected request record?", "Delete", () => {
-    rejections = rejections.filter(r => r.id !== id);
+function unarchiveHistory(id) {
+  const h = history.find(x => x.id === id);
+  if (h) h.is_archived = false;
+  save();
+  renderHistory();
+}
+
+function archiveRejection(id) {
+  showConfirm("Archive Record", "Are you sure you want to archive this rejected request?", "Archive", () => {
+    const r = rejections.find(x => x.id === id);
+    if (r) r.is_archived = true;
     save();
     renderHistory();
   });
+}
+
+function unarchiveRejection(id) {
+  const r = rejections.find(x => x.id === id);
+  if (r) r.is_archived = false;
+  save();
+  renderHistory();
 }
 
 // ---- BOOKKEEPER: MANAGE BOOKS ----
@@ -948,15 +1043,10 @@ function renderManageBooks() {
   const cat = $("adminCatFilter").value;
   const sortBy = $("sortAdminBooks").value;
 
-  let filtered = books.filter(b => {
-    const matchSearch = !q || 
-                        b.title.toLowerCase().includes(q) || 
-                        b.cat.toLowerCase().includes(q) || 
-                        (b.author && b.author.toLowerCase().includes(q)) ||
-                        (b.published && b.published.toString().toLowerCase().includes(q));
-    const matchCat = cat === "all" || b.cat === cat;
-    return matchSearch && matchCat;
-  });
+  let filtered = books.filter(b => (viewArchivedBooks ? b.is_archived : !b.is_archived) && (
+    !q || b.title.toLowerCase().includes(q) || b.cat.toLowerCase().includes(q) ||
+    (b.author && b.author.toLowerCase().includes(q)) || (b.published && b.published.toString().toLowerCase().includes(q))
+  ) && (cat === "all" || b.cat === cat));
 
   filtered.sort((a, b) => {
     if (sortBy === "title-asc") return a.title.localeCompare(b.title);
@@ -976,7 +1066,10 @@ function renderManageBooks() {
       <td>
         <div class="actions-cell">
           <button class="ghost small" onclick="openBookForm(${b.id})">Edit</button>
-          <button class="ghost danger small" onclick="deleteBook(${b.id})">Delete</button>
+          ${viewArchivedBooks
+            ? `<button class="ghost small" onclick="unarchiveBook(${b.id})">Unarchive</button>`
+            : `<button class="ghost danger small" onclick="archiveBook(${b.id})">Archive</button>`
+          }
         </div>
       </td>
     </tr>
@@ -1068,7 +1161,7 @@ function saveBook() {
     b.title = title; b.cat = cat; b.copies = copies; b.author = author; b.published = published; b.icon = icon; b.summary = summary;
   } else {
     books.push({
-      id: Date.now(), title, cat, copies, author, published, icon, summary
+      id: Date.now(), title, cat, copies, author, published, icon, summary, is_archived: false
     });
   }
   save();
@@ -1076,26 +1169,30 @@ function saveBook() {
   renderManageBooks();
 }
 
-function deleteBook(id) {
-  showConfirm("Delete Book", "Are you sure you want to delete this book? Active loans will be affected.", "Delete", () => {
-    books = books.filter(b => b.id !== id);
+function archiveBook(id) {
+  showConfirm("Archive Book", "Are you sure you want to archive this book? It will be hidden from the catalog but kept in the database.", "Archive", () => {
+    const b = books.find(x => x.id === id);
+    if (b) b.is_archived = true;
     save();
     renderManageBooks();
   });
+}
+
+function unarchiveBook(id) {
+  const b = books.find(x => x.id === id);
+  if (b) b.is_archived = false;
+  save();
+  renderManageBooks();
 }
 
 // ---- ADMIN: MANAGE USERS ----
 function renderManageUsers() {
   const q = $("adminUserSearch").value.toLowerCase();
   
-  const filtered = users.filter(u => 
-    !q || 
-    u.name.toLowerCase().includes(q) || 
-    u.username.toLowerCase().includes(q) || 
-    u.role.toLowerCase().includes(q) ||
-    (u.studentNum && u.studentNum.toLowerCase().includes(q)) ||
-    (u.section && u.section.toLowerCase().includes(q))
-  );
+  const filtered = users.filter(u => (viewArchivedUsers ? u.is_archived : !u.is_archived) && (
+    !q || u.name.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.role.toLowerCase().includes(q) ||
+    (u.studentNum && u.studentNum.toLowerCase().includes(q)) || (u.section && u.section.toLowerCase().includes(q))
+  ));
 
   if (filtered.length === 0) {
     $("manageUsersBody").innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">No accounts match your search.</td></tr>`;
@@ -1110,7 +1207,11 @@ function renderManageUsers() {
       <td>
         <div class="actions-cell">
           <button class="ghost small" onclick="openUserForm(${u.id})">Edit</button>
-          ${u.id !== currentUser.id ? `<button class="ghost danger small" onclick="deleteUser(${u.id})">Delete</button>` : ''}
+          ${u.id !== currentUser.id ? (
+            viewArchivedUsers 
+              ? `<button class="ghost small" onclick="unarchiveUser(${u.id})">Unarchive</button>`
+              : `<button class="ghost danger small" onclick="archiveUser(${u.id})">Archive</button>`
+          ) : ''}
         </div>
       </td>
     </tr>
@@ -1168,19 +1269,27 @@ function saveUser() {
     const u = users.find(x => x.id == id);
     u.name = name; u.username = username; u.password = password; u.role = role; u.studentNum = studentNum; u.section = section;
   } else {
-    users.push({ id: Date.now(), name, username, password, role, studentNum, section });
+    users.push({ id: Date.now(), name, username, password, role, studentNum, section, is_archived: false });
   }
   save();
   $("userFormModal").hidden = true;
   renderManageUsers();
 }
 
-function deleteUser(id) {
-  showConfirm("Delete Account", "Are you sure you want to delete this user account permanently?", "Delete", () => {
-    users = users.filter(u => u.id !== id);
+function archiveUser(id) {
+  showConfirm("Archive Account", "Are you sure you want to archive this user account?", "Archive", () => {
+    const u = users.find(x => x.id === id);
+    if (u) u.is_archived = true;
     save();
     renderManageUsers();
   });
+}
+
+function unarchiveUser(id) {
+  const u = users.find(x => x.id === id);
+  if (u) u.is_archived = false;
+  save();
+  renderManageUsers();
 }
 
 // ---- SUPPORT TICKETS & REPLIES ----
@@ -1364,7 +1473,7 @@ function submitReply() {
   renderTickets(); 
 }
 
-// ---- INIT (NO BOOK SEEDING) ----
+// ---- INIT ----
 async function initApp() {
   try {
     const response = await fetch('api.php?action=load&t=' + Date.now(), { cache: 'no-store' });
@@ -1379,9 +1488,7 @@ async function initApp() {
       users = data.users;
     }
 
-    // Pull books purely from the database
     books = data.books || [];
-
     loans = data.loans || [];
     history = data.history || [];
     requests = data.requests || [];
