@@ -39,7 +39,51 @@ let extensionRequests = JSON.parse(localStorage.getItem("extReqs") || "[]");
 let tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
 
 let currentUser = null;
+let currentTicketView = 'ongoing'; 
+let minCopiesAllowed = 1;
+let pendingConfirmAction = null;
 const $ = id => document.getElementById(id);
+
+// ---- THEME DROPDOWN LOGIC ----
+const savedTheme = localStorage.getItem("themeName") || "midnight-ocean";
+document.documentElement.setAttribute("data-theme", savedTheme);
+
+function toggleThemeDropdown(e) {
+  e.stopPropagation();
+  const dd = $("themeDropdown");
+  dd.style.display = dd.style.display === "none" ? "flex" : "none";
+}
+
+document.addEventListener("click", (e) => {
+  const dd = $("themeDropdown");
+  const btn = $("themeBtn");
+  if (dd && dd.style.display === "flex" && !btn.contains(e.target) && !dd.contains(e.target)) {
+    dd.style.display = "none";
+  }
+});
+
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("themeName", theme);
+  $("themeDropdown").style.display = "none";
+
+  const activeOpt = document.querySelector(`.theme-option[data-theme="${theme}"]`);
+  if (activeOpt) {
+    document.querySelectorAll(".theme-option").forEach(opt => opt.classList.remove("active"));
+    activeOpt.classList.add("active");
+    
+    const icon = activeOpt.querySelector(".theme-option-icon").cloneNode(true);
+    const title = activeOpt.querySelector(".theme-option-title").textContent;
+    
+    const btnIcon = $("activeThemeIcon");
+    btnIcon.style.background = icon.style.background;
+    btnIcon.style.color = icon.style.color;
+    btnIcon.textContent = icon.textContent;
+    $("activeThemeName").textContent = title;
+  }
+}
+
+setTheme(savedTheme);
 
 function save() {
   localStorage.setItem("users", JSON.stringify(users));
@@ -62,9 +106,32 @@ function getThemeClass(cat) {
 
 const borrowedCount = id => loans.filter(l => l.bookId === id).length;
 
+// ---- GLOBAL CONFIRM MODAL ----
+function showConfirm(title, message, confirmText, callback) {
+  $("gcTitle").textContent = title;
+  $("gcMessage").textContent = message;
+  $("gcConfirmBtn").textContent = confirmText;
+  pendingConfirmAction = callback;
+  $("globalConfirmModal").hidden = false;
+}
+
+$("gcConfirmBtn").onclick = () => {
+  if (pendingConfirmAction) pendingConfirmAction();
+  $("globalConfirmModal").hidden = true;
+  pendingConfirmAction = null;
+};
+
+// ---- GLOBAL ESC KEY LISTENER ----
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    document.querySelectorAll(".modal").forEach(m => m.hidden = true);
+    $("themeDropdown").style.display = "none";
+  }
+});
+
 // ---- AUTHENTICATION (FORM SUBMIT) ----
 $("loginForm").onsubmit = (e) => {
-  e.preventDefault(); // Prevents page reload
+  e.preventDefault();
   $("loginErr").textContent = "";
   
   const u = $("user").value.trim();
@@ -107,20 +174,113 @@ function submitAuthTicket() {
     return;
   }
   
+  const newTicketId = Date.now();
+  
   tickets.unshift({
-    id: Date.now(),
+    id: newTicketId,
     userId: "guest",
     userName: name + " (Guest)",
     subject: "Account Recovery: " + user,
     desc: desc,
-    date: new Date().toISOString().slice(0, 10),
+    date: new Date().toISOString().slice(0, 10), 
+    time: new Date().toLocaleString(), 
     status: "Open",
     replies: []
   });
   
+  let guestTickets = JSON.parse(localStorage.getItem("guestTickets") || "[]");
+  guestTickets.push(newTicketId);
+  localStorage.setItem("guestTickets", JSON.stringify(guestTickets));
+  
   save();
   $("authTicketModal").hidden = true;
-  alert("Ticket sent! The Admin will review it soon.");
+  
+  $("guestTicketsModal").hidden = false;
+  renderGuestTickets();
+}
+
+function openGuestTickets(e) {
+  e.preventDefault();
+  renderGuestTickets();
+  $("guestTicketsModal").hidden = false;
+}
+
+function renderGuestTickets() {
+  const guestTickets = JSON.parse(localStorage.getItem("guestTickets") || "[]");
+  const myTickets = tickets.filter(t => guestTickets.includes(t.id));
+  
+  const container = $("guestTicketsList");
+  
+  if (myTickets.length === 0) {
+    container.innerHTML = `<p style="text-align: center; color: var(--muted); font-style: italic;">You haven't submitted any tickets yet.</p>`;
+    return;
+  }
+  
+  container.innerHTML = myTickets.map(t => {
+    const tTime = t.time || t.date;
+    
+    let repliesHtml = "";
+    if (t.replies && t.replies.length > 0) {
+      repliesHtml = `<div class="guest-ticket-replies">
+        ${t.replies.map(r => `
+          <div class="reply-bubble ${r.sender === 'Admin' || r.sender === 'Bookkeeper' ? 'admin' : 'student'}">
+            <strong>${r.sender}:</strong> ${r.text}
+            <div class="reply-meta">${r.date}</div>
+          </div>
+        `).join("")}
+      </div>`;
+    }
+
+    let replyInput = "";
+    if (t.status === 'Open') {
+      replyInput = `
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <input id="greply-${t.id}" placeholder="Type your reply..." style="flex: 1; padding: 8px; font-size: 13px; border-radius: 6px;">
+          <button class="small" onclick="submitGuestReply(${t.id})">Send</button>
+        </div>
+      `;
+    } else {
+      replyInput = `<p style="font-size: 12px; color: var(--muted); margin-top: 8px; font-style: italic;">This ticket is resolved. The Admin must reopen it for you to chat.</p>`;
+    }
+
+    return `
+      <div class="guest-ticket-card">
+        <div class="guest-ticket-header">
+          <div>
+            <div class="guest-ticket-title">${t.subject}</div>
+            <div class="guest-ticket-date">Submitted on ${tTime}</div>
+          </div>
+          <span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: ${t.status === 'Open' ? 'color-mix(in srgb, #f59e0b 15%, transparent)' : 'color-mix(in srgb, #10b981 15%, transparent)'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+            ${t.status}
+          </span>
+        </div>
+        <div class="guest-ticket-desc">"${t.desc}"</div>
+        ${repliesHtml}
+        ${replyInput}
+      </div>
+    `;
+  }).join("");
+}
+
+function submitGuestReply(ticketId) {
+  const input = $(`greply-${ticketId}`);
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  
+  const t = tickets.find(x => x.id === ticketId);
+  if (!t) return;
+  
+  if (!t.replies) t.replies = [];
+  
+  t.replies.push({
+    sender: "Guest",
+    text: text,
+    date: new Date().toLocaleString()
+  });
+  
+  save();
+  renderGuestTickets();
 }
 
 function showApp() {
@@ -134,6 +294,7 @@ function showApp() {
   const isAdmin = currentUser.role === "Admin";
 
   $("navCatalog").hidden = isAdmin;
+  $("navMyRequests").hidden = !isStudent; // Show only to Student
   $("navRequests").hidden = !isBookkeeper;
   $("navLoans").hidden = isAdmin;
   $("navHistory").hidden = isAdmin;
@@ -141,8 +302,9 @@ function showApp() {
   $("navUsers").hidden = !isAdmin;
   $("navTickets").hidden = isBookkeeper;
 
-  // Admin cannot create tickets
   $("btnNewTicket").style.display = isAdmin ? "none" : "block";
+  $("ticketTabs").style.display = isAdmin ? "flex" : "none";
+  $("thQueue").style.display = isAdmin ? "table-cell" : "none";
 
   if (isAdmin) switchView("users");
   else if (isBookkeeper) switchView("requests");
@@ -151,17 +313,18 @@ function showApp() {
 
 // ---- NAVIGATION ----
 function switchView(viewName) {
-  ['catalog', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
+  ['catalog', 'my-requests', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
     $("view-" + v).hidden = true;
-    const navBtn = $("nav" + v.charAt(0).toUpperCase() + v.slice(1));
+    const navBtn = $("nav" + v.charAt(0).toUpperCase() + v.slice(1).replace('-', ''));
     if (navBtn) navBtn.classList.remove("active");
   });
   
   $("view-" + viewName).hidden = false;
-  const activeBtn = $("nav" + viewName.charAt(0).toUpperCase() + viewName.slice(1));
+  const activeBtn = $("nav" + viewName.charAt(0).toUpperCase() + viewName.slice(1).replace('-', ''));
   if (activeBtn) activeBtn.classList.add("active");
 
   if (viewName === 'catalog') renderCatalog();
+  if (viewName === 'my-requests') renderMyRequests();
   if (viewName === 'requests') renderRequests();
   if (viewName === 'loans') renderLoans();
   if (viewName === 'history') renderHistory();
@@ -187,7 +350,6 @@ function renderCatalog() {
     return matchSearch && matchCat;
   });
 
-  // Sort logic
   filtered.sort((a, b) => {
     if (sortBy === "title-asc") return a.title.localeCompare(b.title);
     if (sortBy === "title-desc") return b.title.localeCompare(a.title);
@@ -204,22 +366,26 @@ function renderCatalog() {
     const avail = b.copies - borrowedCount(b.id);
     const theme = getThemeClass(b.cat);
     
-    let actionBtns = `<button class="view-btn" onclick="openBookInfo(${b.id})">View</button>`;
+    let actionBtns = "";
     
     if (currentUser.role === 'Student') {
       const alreadyReq = requests.find(r => r.bookId === b.id && r.studentId === currentUser.id);
       const alreadyBorrowed = loans.find(l => l.bookId === b.id && l.borrowerId === currentUser.id);
       
       if (alreadyReq) {
-        actionBtns += `<button disabled style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; opacity:1;">Requested</button>`;
+        actionBtns += `<button disabled style="background:color-mix(in srgb, #f59e0b 15%, transparent); color:#b45309; border:1px solid #fcd34d; opacity:1;" onclick="event.stopPropagation()">Requested</button>`;
       } else if (alreadyBorrowed) {
-        actionBtns += `<button disabled style="background:#d1fae5; color:#047857; border:1px solid #6ee7b7; opacity:1;">Borrowed</button>`;
+        actionBtns += `<button disabled style="background:color-mix(in srgb, #10b981 15%, transparent); color:#047857; border:1px solid #6ee7b7; opacity:1;" onclick="event.stopPropagation()">Borrowed</button>`;
       } else {
-        actionBtns += `<button ${avail === 0 ? "disabled" : ""} onclick="openRequest(${b.id})">Request</button>`;
+        if (avail > 0) {
+          actionBtns += `<button onclick="event.stopPropagation(); openRequest(${b.id}, false)">Borrow</button>`;
+        } else {
+          actionBtns += `<button style="background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; box-shadow:0 4px 12px rgba(245,158,11,0.3);" onclick="event.stopPropagation(); openRequest(${b.id}, true)">Request</button>`;
+        }
       }
     }
 
-    return `<div class="book ${theme}">
+    return `<div class="book ${theme}" onclick="openBookInfo(${b.id})">
       <span class="cat">${b.cat}</span>
       <h3>${b.title}</h3>
       <span class="avail">${avail} of ${b.copies} available</span>
@@ -247,14 +413,15 @@ function openBookInfo(id) {
   $("bookInfoModal").hidden = false;
 }
 
-// ---- STUDENT: REQUEST BORROWING ----
+// ---- STUDENT: REQUEST BORROWING (WITH WAITLIST) ----
 let requestingBookId = null;
+let isWaitlistReq = false;
 
-function openRequest(id) {
+function openRequest(id, isWaitlist = false) {
   requestingBookId = id;
+  isWaitlistReq = isWaitlist;
   const b = books.find(x => x.id === id);
   
-  // Auto-fill from currentUser
   $("reqName").value = currentUser.name;
   $("reqStudentId").value = currentUser.studentNum || "Not Set";
   $("reqSection").value = currentUser.section || "Not Set";
@@ -262,7 +429,12 @@ function openRequest(id) {
   $("reqContact").value = "";
   $("reqNotes").value = "";
   $("reqErr").textContent = "";
-  $("reqBookName").textContent = b.title;
+
+  if (isWaitlist) {
+    $("reqBookName").innerHTML = `${b.title} <br><span style="color:#b45309; font-size:12px; font-weight:600;">(Out of Stock - Joining Waitlist)</span>`;
+  } else {
+    $("reqBookName").textContent = b.title;
+  }
   
   $("requestModal").hidden = false;
 }
@@ -282,6 +454,7 @@ function submitRequest() {
     reqSection: currentUser.section,
     reqContact: $("reqContact").value.trim(),
     notes: $("reqNotes").value.trim(),
+    isWaitlist: isWaitlistReq,
     dateRequested: new Date().toISOString().slice(0, 10)
   });
   
@@ -290,14 +463,52 @@ function submitRequest() {
   renderCatalog();
 }
 
+// ---- STUDENT: MY REQUESTS VIEW ----
+function renderMyRequests() {
+  const myReqs = requests.filter(r => r.studentId === currentUser.id);
+  
+  $("noMyRequests").hidden = myReqs.length > 0;
+  
+  $("myRequestsBody").innerHTML = myReqs.map(r => {
+    const book = books.find(b => b.id === r.bookId);
+    const badge = r.isWaitlist ? `<span style="background:#f59e0b; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; margin-left:8px;">WAITLIST</span>` : "";
+    
+    return `<tr>
+      <td><strong>${book ? book.title : "Deleted Book"}</strong> ${badge}</td>
+      <td>${r.dateRequested}</td>
+      <td>
+        <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, #f59e0b 15%, transparent); color: #b45309;">
+          Pending Approval
+        </span>
+      </td>
+      <td>
+        <div class="actions-cell">
+          <button class="ghost danger small" onclick="cancelRequest(${r.id})">Cancel Request</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function cancelRequest(reqId) {
+  showConfirm("Cancel Request", "Are you sure you want to cancel this borrow request?", "Cancel Request", () => {
+    requests = requests.filter(r => r.id !== reqId);
+    save();
+    renderMyRequests();
+    renderCatalog(); // Update button in catalog
+  });
+}
+
 // ---- BOOKKEEPER: APPROVE/REJECT REQUESTS ----
 function renderRequests() {
   $("noRequests").hidden = requests.length > 0;
   $("requestsBody").innerHTML = requests.map(r => {
     const book = books.find(b => b.id === r.bookId);
+    const waitlistBadge = r.isWaitlist ? `<span style="display:inline-block; margin-left: 8px; background:#f59e0b; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; letter-spacing:0.5px;">WAITLIST</span>` : "";
+    
     return `<tr>
       <td><strong>${book ? book.title : "Deleted Book"}</strong></td>
-      <td>${r.studentName}</td>
+      <td>${r.studentName} ${waitlistBadge}</td>
       <td>${r.dateRequested}</td>
       <td>
         <div class="actions-cell">
@@ -328,7 +539,6 @@ function openViewRequest(reqId) {
   $("viewRequestModal").hidden = false;
 }
 
-// Bookkeeper: Approve
 function promptApprove() {
   $("viewRequestModal").hidden = true;
   const req = requests.find(r => r.id === viewingRequestId);
@@ -366,7 +576,6 @@ function approveRequest() {
   renderRequests();
 }
 
-// Bookkeeper: Reject
 function promptReject() {
   $("viewRequestModal").hidden = true;
   $("rejectReason").value = "";
@@ -384,7 +593,6 @@ function submitReject() {
   const reqIndex = requests.findIndex(r => r.id === viewingRequestId);
   const req = requests[reqIndex];
   
-  // Move to rejections for history
   req.status = "Rejected";
   req.reason = reason;
   req.dateProcessed = new Date().toISOString().slice(0, 10);
@@ -399,11 +607,7 @@ function submitReject() {
 // ---- LOANS & EXTENSIONS ----
 function renderLoans() {
   const isStudent = currentUser.role === 'Student';
-  
-  // FILTER: Students only see their own loans
-  const visibleLoans = isStudent 
-    ? loans.filter(l => l.borrowerId === currentUser.id) 
-    : loans;
+  const visibleLoans = isStudent ? loans.filter(l => l.borrowerId === currentUser.id) : loans;
 
   $("noLoans").hidden = visibleLoans.length > 0;
 
@@ -417,10 +621,10 @@ function renderLoans() {
       if (hasPendingExt) {
         actions += `<span style="font-size: 12px; color: #b45309; font-weight: 600; margin-left: 8px;">Ext. Pending</span>`;
       } else {
-        actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendRequest(${l.id})">Request Extend</button>`;
+        actions += `<button class="ghost small" style="color:var(--primary); border-color:color-mix(in srgb, var(--primary) 40%, var(--border));" onclick="openExtendRequest(${l.id})">Request Extend</button>`;
       }
     } else {
-      actions += `<button class="ghost small" style="color:#4f46e5; border-color:#c7d2fe;" onclick="openExtendLoan(${l.id})">Extend</button>`;
+      actions += `<button class="ghost small" style="color:var(--primary); border-color:color-mix(in srgb, var(--primary) 40%, var(--border));" onclick="openExtendLoan(${l.id})">Extend</button>`;
       actions += `<button class="small" onclick="returnBook(${l.id})">Return</button>`;
     }
 
@@ -457,8 +661,8 @@ function viewLoanDetails(id, isHistory) {
   if (loan.extensions && loan.extensions.length > 0) {
     extArea.style.display = "block";
     extList.innerHTML = loan.extensions.map(e => `
-      <div style="border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; margin-bottom: 8px;">
-        <div style="font-weight: 600; color: #4f46e5;">New Due: ${e.newDue}</div>
+      <div style="border-bottom: 1px dashed var(--border); padding-bottom: 8px; margin-bottom: 8px;">
+        <div style="font-weight: 600; color: var(--primary);">New Due: ${e.newDue}</div>
         <div><strong>Reason:</strong> ${e.reason}</div>
       </div>
     `).join("");
@@ -488,7 +692,6 @@ function viewRejection(id) {
   $("viewRejectionModal").hidden = false;
 }
 
-// Bookkeeper: Direct Extend
 let extendingLoanId = null;
 
 function openExtendLoan(id) {
@@ -523,7 +726,6 @@ function saveExtendLoan() {
   renderLoans();
 }
 
-// Student: Request Extend
 let extReqLoanId = null;
 
 function openExtendRequest(loanId) {
@@ -564,7 +766,7 @@ function renderExtensionRequests() {
   
   if (extensionRequests.length > 0) {
     extArea.innerHTML += extensionRequests.map(ext => `
-      <tr style="background: #fef2f2;">
+      <tr style="background: color-mix(in srgb, #ef4444 5%, transparent);">
         <td><strong>[EXTENSION] ${ext.bookName}</strong></td>
         <td>${ext.studentName}</td>
         <td>Reason: ${ext.reason}</td>
@@ -615,10 +817,11 @@ function approveExtension() {
 }
 
 function rejectExtension(id) {
-  if (!confirm("Reject extension?")) return;
-  extensionRequests = extensionRequests.filter(r => r.id !== id);
-  save();
-  switchView("requests");
+  showConfirm("Reject Extension", "Are you sure you want to reject this extension request?", "Reject", () => {
+    extensionRequests = extensionRequests.filter(r => r.id !== id);
+    save();
+    switchView("requests");
+  });
 }
 
 function returnBook(loanId) {
@@ -657,7 +860,7 @@ function renderHistory() {
           <td><strong>${book ? book.title : "Unknown"}</strong></td>
           <td><span style="color: #10b981; font-weight: 600;">Returned</span></td>
           <td>${item.returnedAt}</td>
-          <td style="font-style: italic; color: #64748b;">${item.notes || "—"}</td>
+          <td style="font-style: italic; color: var(--muted);">${item.notes || "—"}</td>
         </tr>`;
       } else {
         const book = books.find(b => b.id === item.bookId);
@@ -719,17 +922,19 @@ function renderHistory() {
 }
 
 function deleteHistory(id) {
-  if(!confirm("Delete this history record?")) return;
-  history = history.filter(h => h.id !== id);
-  save();
-  renderHistory();
+  showConfirm("Delete History", "Are you sure you want to permanently delete this history record?", "Delete", () => {
+    history = history.filter(h => h.id !== id);
+    save();
+    renderHistory();
+  });
 }
 
 function deleteRejection(id) {
-  if(!confirm("Delete this rejected request record?")) return;
-  rejections = rejections.filter(r => r.id !== id);
-  save();
-  renderHistory();
+  showConfirm("Delete Record", "Are you sure you want to delete this rejected request record?", "Delete", () => {
+    rejections = rejections.filter(r => r.id !== id);
+    save();
+    renderHistory();
+  });
 }
 
 // ---- BOOKKEEPER: MANAGE BOOKS ----
@@ -785,21 +990,53 @@ function openBookForm(id = null) {
     const b = books.find(x => x.id === id);
     $("bfTitle").value = b.title;
     $("bfCategory").value = b.cat;
+    
+    const activeLoans = borrowedCount(id);
+    minCopiesAllowed = Math.max(1, activeLoans); 
+    
     $("bfCopies").value = b.copies;
+    $("btnMinusCopies").disabled = (b.copies <= minCopiesAllowed);
+
+    const pendingReqs = requests.filter(r => r.bookId === id).length;
+    $("bfStats").innerHTML = `
+      <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+        <span style="color:#f59e0b;">●</span> <strong>${activeLoans}</strong> currently borrowed
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+        <span style="color:#6366f1;">●</span> <strong>${pendingReqs}</strong> pending requests
+      </div>
+    `;
+    
     $("bfAuthor").value = b.author || "";
     $("bfPublished").value = b.published || "";
     $("bfIcon").value = b.icon || "📘";
     $("bfSummary").value = b.summary || "";
   } else {
+    minCopiesAllowed = 1;
     $("bfTitle").value = "";
     $("bfCategory").value = "IT";
     $("bfCopies").value = 1;
+    $("btnMinusCopies").disabled = true;
+    $("bfStats").innerHTML = ""; 
     $("bfAuthor").value = "";
     $("bfPublished").value = new Date().getFullYear();
     $("bfIcon").value = "📘";
     $("bfSummary").value = "";
   }
   $("bookFormModal").hidden = false;
+}
+
+function adjustCopies(change) {
+  let val = parseInt($("bfCopies").value) || 1;
+  let newVal = val + change;
+  
+  if (newVal < minCopiesAllowed) {
+    showConfirm("Stock Limit Reached", `You cannot reduce the stock below ${minCopiesAllowed} because there are currently ${minCopiesAllowed} active loans for this book.`, "Okay", () => {});
+    return;
+  }
+  
+  $("bfCopies").value = newVal;
+  $("btnMinusCopies").disabled = (newVal <= minCopiesAllowed);
 }
 
 function saveBook() {
@@ -812,9 +1049,16 @@ function saveBook() {
   const icon = $("bfIcon").value;
   const summary = $("bfSummary").value;
 
-  if (!title) return alert("Title is required");
-
+  if (!title) {
+    showConfirm("Missing Field", "Title is required.", "Okay", () => {});
+    return;
+  }
+  
   if (id) {
+    if (copies < minCopiesAllowed) {
+      showConfirm("Stock Limit Reached", `Cannot set copies below ${minCopiesAllowed} due to active loans.`, "Okay", () => {});
+      return;
+    }
     const b = books.find(x => x.id == id);
     b.title = title; b.cat = cat; b.copies = copies; b.author = author; b.published = published; b.icon = icon; b.summary = summary;
   } else {
@@ -828,19 +1072,36 @@ function saveBook() {
 }
 
 function deleteBook(id) {
-  if(!confirm("Delete this book? Active loans will be affected.")) return;
-  books = books.filter(b => b.id !== id);
-  save();
-  renderManageBooks();
+  showConfirm("Delete Book", "Are you sure you want to delete this book? Active loans will be affected.", "Delete", () => {
+    books = books.filter(b => b.id !== id);
+    save();
+    renderManageBooks();
+  });
 }
 
 // ---- ADMIN: MANAGE USERS ----
 function renderManageUsers() {
-  $("manageUsersBody").innerHTML = users.map(u => `
+  const q = $("adminUserSearch").value.toLowerCase();
+  
+  const filtered = users.filter(u => 
+    !q || 
+    u.name.toLowerCase().includes(q) || 
+    u.username.toLowerCase().includes(q) || 
+    u.role.toLowerCase().includes(q) ||
+    (u.studentNum && u.studentNum.toLowerCase().includes(q)) ||
+    (u.section && u.section.toLowerCase().includes(q))
+  );
+
+  if (filtered.length === 0) {
+    $("manageUsersBody").innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted)">No accounts match your search.</td></tr>`;
+    return;
+  }
+
+  $("manageUsersBody").innerHTML = filtered.map(u => `
     <tr>
       <td><strong>${u.name}</strong></td>
       <td>${u.username}</td>
-      <td><span class="cat" style="background:#e0e7ff; color:#4f46e5;">${u.role}</span></td>
+      <td><span class="cat" style="background:color-mix(in srgb, var(--primary) 15%, transparent); color:var(--primary);">${u.role}</span></td>
       <td>
         <div class="actions-cell">
           <button class="ghost small" onclick="openUserForm(${u.id})">Edit</button>
@@ -850,6 +1111,8 @@ function renderManageUsers() {
     </tr>
   `).join("");
 }
+
+$("adminUserSearch").oninput = renderManageUsers;
 
 function toggleUserFields() {
   const role = $("ufRole").value;
@@ -891,7 +1154,10 @@ function saveUser() {
   const studentNum = $("ufStudentNum").value;
   const section = $("ufSection").value;
 
-  if (!name || !username || !password) return alert("All fields required");
+  if (!name || !username || !password) {
+    showConfirm("Missing Fields", "All fields are required.", "Okay", () => {});
+    return;
+  }
 
   if (id) {
     const u = users.find(x => x.id == id);
@@ -905,28 +1171,67 @@ function saveUser() {
 }
 
 function deleteUser(id) {
-  if(!confirm("Delete this user account permanently?")) return;
-  users = users.filter(u => u.id !== id);
-  save();
-  renderManageUsers();
+  showConfirm("Delete Account", "Are you sure you want to delete this user account permanently?", "Delete", () => {
+    users = users.filter(u => u.id !== id);
+    save();
+    renderManageUsers();
+  });
 }
 
 // ---- SUPPORT TICKETS & REPLIES ----
 let currentTicketId = null;
 
+function switchTicketView(view) {
+  currentTicketView = view;
+  document.querySelectorAll('#ticketTabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+  if(view === 'ongoing') $("tabOngoing").classList.add('active');
+  else $("tabResolved").classList.add('active');
+  renderTickets();
+}
+
 function renderTickets() {
   const isStudent = currentUser.role === 'Student';
   
-  const myTickets = isStudent ? tickets.filter(t => t.userId === currentUser.id) : tickets;
+  let displayTickets = [];
   
-  $("noTickets").hidden = myTickets.length > 0;
+  if (isStudent) {
+    displayTickets = tickets.filter(t => t.userId === currentUser.id);
+    displayTickets.sort((a,b) => new Date(b.time || b.date) - new Date(a.time || a.date));
+  } else {
+    displayTickets = tickets.filter(t => currentTicketView === 'ongoing' ? t.status === 'Open' : t.status === 'Resolved');
+    
+    displayTickets.sort((a,b) => {
+      const timeA = new Date(a.time || a.date).getTime();
+      const timeB = new Date(b.time || b.date).getTime();
+      return currentTicketView === 'ongoing' ? timeA - timeB : timeB - timeA;
+    });
+  }
   
-  $("ticketsBody").innerHTML = myTickets.map(t => `
-    <tr>
+  $("noTickets").hidden = displayTickets.length > 0;
+  
+  const ongoingTickets = tickets.filter(t => t.status === 'Open');
+  ongoingTickets.sort((a,b) => new Date(a.time || a.date) - new Date(b.time || b.date));
+
+  $("ticketsBody").innerHTML = displayTickets.map(t => {
+    let queueNumHtml = "";
+    if (!isStudent) {
+      if (currentTicketView === 'ongoing') {
+        const qIndex = ongoingTickets.findIndex(x => x.id === t.id) + 1;
+        queueNumHtml = `<td><span class="queue-badge">#${qIndex}</span></td>`;
+      } else {
+        queueNumHtml = `<td>—</td>`;
+      }
+    }
+
+    const tTime = t.time || t.date;
+
+    return `<tr>
+      ${queueNumHtml}
+      <td style="font-size: 12px; color: var(--muted);">${tTime}</td>
       <td><strong>${t.subject}</strong></td>
       <td>${t.userName}</td>
       <td>
-        <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+        <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? 'color-mix(in srgb, #f59e0b 15%, transparent)' : 'color-mix(in srgb, #10b981 15%, transparent)'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
           ${t.status}
         </span>
       </td>
@@ -940,8 +1245,8 @@ function renderTickets() {
           <button class="ghost small" onclick="viewTicket(${t.id})">View / Reply</button>
         </div>
       </td>
-    </tr>
-  `).join("");
+    </tr>`;
+  }).join("");
 }
 
 function toggleTicketStatus(id) {
@@ -951,6 +1256,11 @@ function toggleTicketStatus(id) {
   if (!t) return;
   
   t.status = (t.status === 'Open') ? 'Resolved' : 'Open';
+  
+  if (t.status === 'Open') {
+    t.time = new Date().toLocaleString();
+  }
+  
   save();
   renderTickets();
 }
@@ -977,6 +1287,7 @@ function submitTicket() {
     subject: subject,
     desc: desc,
     date: new Date().toISOString().slice(0, 10),
+    time: new Date().toLocaleString(),
     status: "Open",
     replies: []
   });
@@ -988,25 +1299,25 @@ function submitTicket() {
 function viewTicket(id) {
   currentTicketId = id;
   const t = tickets.find(x => x.id === id);
+  const tTime = t.time || t.date;
   
   $("vtSubject").textContent = t.subject;
   $("vtUser").textContent = t.userName;
-  $("vtDate").textContent = t.date;
+  $("vtDate").textContent = tTime;
   $("vtDesc").textContent = t.desc;
   $("replyText").value = "";
 
   $("vtStatusBadge").innerHTML = `
-    <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? '#fef3c7' : '#d1fae5'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
+    <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? 'color-mix(in srgb, #f59e0b 15%, transparent)' : 'color-mix(in srgb, #10b981 15%, transparent)'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
       Status: ${t.status}
     </span>
   `;
 
   const rContainer = $("ticketReplies");
   if (!t.replies || t.replies.length === 0) {
-    rContainer.innerHTML = `<p style="font-size: 13px; color: #94a3b8; font-style: italic; text-align: center;">No replies yet.</p>`;
+    rContainer.innerHTML = `<p style="font-size: 13px; color: var(--muted); font-style: italic; text-align: center;">No replies yet.</p>`;
   } else {
     rContainer.innerHTML = t.replies.map(r => {
-      // Check if sender is admin to style bubble
       const isAdminReply = r.sender === 'Admin' || r.sender === 'Bookkeeper';
       return `
         <div class="reply-bubble ${isAdminReply ? 'admin' : 'student'}">
