@@ -26,12 +26,7 @@
 
     <p id="loginErr" class="err"></p>
     
-    <div style="margin-top: 16px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5;">
-      <strong>Demo Accounts:</strong><br>
-      Admin: admin / admin123<br>
-      Bookkeeper: keeper / keeper123<br>
-      Student: student / student123
-    </div>
+    
 
     <div class="auth-links" style="display: flex; flex-direction: column; gap: 8px;">
       <a href="#" onclick="openAuthTicketModal(event)">Forgot username or password?</a>
@@ -120,6 +115,7 @@
 
   <main>
     <div class="tabs main-tabs">
+      <button id="navInfo" class="tab-btn" onclick="switchView('info')">ℹ️ Guidelines</button>
       <button id="navCatalog" class="tab-btn" onclick="switchView('catalog')">📚 Catalog</button>
       <button id="navMyRequests" class="tab-btn" onclick="switchView('my-requests')">📋 My Requests</button>
       <button id="navRequests" class="tab-btn" onclick="switchView('requests')">📥 Borrow Requests</button>
@@ -129,6 +125,90 @@
       <button id="navUsers" class="tab-btn" onclick="switchView('users')">👥 Accounts</button>
       <button id="navTickets" class="tab-btn" onclick="switchView('tickets')">🎫 Support Tickets</button>
     </div>
+
+    <!-- 0. INFO / GUIDELINES VIEW -->
+    <section id="view-info" hidden>
+      <div class="section-head" style="margin-top: 0; margin-bottom: 24px;">
+        <h2>Library Rules & Guidelines</h2>
+      </div>
+      
+      <!-- Quick Rules (Dynamic based on Role) -->
+      <div class="grid" style="grid-template-columns: 1fr; gap: 24px; margin-bottom: 24px;">
+        <div class="card" style="padding: 24px; border-left: 5px solid var(--primary); background: var(--surface); border-radius: 12px;">
+          <h3 id="generalRulesTitle" style="margin-top: 0; color: var(--primary);">📌 Quick Rules</h3>
+          <ul id="generalRulesList" style="line-height: 1.8; color: var(--text); font-size: 14px; padding-left: 20px;">
+            <!-- Populated dynamically by JavaScript -->
+          </ul>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+        
+        <!-- Student Role -->
+        <div class="card" id="guide-student" style="padding: 24px; border-top: 4px solid #3b82f6; background: var(--surface); border-radius: 12px;">
+          <h3 style="margin-top: 0; color: #3b82f6;">🎓 Student Role</h3>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">What you CAN do:</p>
+          <ul style="line-height: 1.6; font-size: 13px; padding-left: 16px; color: var(--text);">
+            <li>Browse and search the book catalog.</li>
+            <li>Request to borrow available books (Max 5 total, 1 per title).</li>
+            <li>Join the waitlist for out-of-stock books.</li>
+            <li>Track your pending requests in "My Requests".</li>
+            <li>View your active loans and due dates.</li>
+            <li>Request loan extensions with a valid reason.</li>
+            <li>Submit support tickets for account issues.</li>
+          </ul>
+          <p style="font-size: 13px; color: var(--muted); margin: 16px 0 8px;">What you CANNOT do:</p>
+          <ul style="line-height: 1.6; font-size: 13px; padding-left: 16px; color: #ef4444;">
+            <li>Approve your own requests.</li>
+            <li>Add, edit, or archive books.</li>
+            <li>Manage other users' accounts.</li>
+            <li>Borrow more than 5 books or more than 1 copy of the same title.</li>
+          </ul>
+        </div>
+
+        <!-- Bookkeeper Role -->
+        <div class="card" id="guide-bookkeeper" style="padding: 24px; border-top: 4px solid #10b981; background: var(--surface); border-radius: 12px;">
+          <h3 style="margin-top: 0; color: #10b981;">📚 Bookkeeper Role</h3>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">What you CAN do:</p>
+          <ul style="line-height: 1.6; font-size: 13px; padding-left: 16px; color: var(--text);">
+            <li>Add, edit, and archive books in the catalog.</li>
+            <li>Approve or reject student borrow requests.</li>
+            <li><strong>Enforce Limits:</strong> Ensure students do not exceed 5 active loans or request more than 1 copy of the same title.</li>
+            <li>Set due dates when approving requests.</li>
+            <li>Process returned books from "Active Loans".</li>
+            <li><strong>Review Extensions:</strong> Approve or reject loan extension requests based on the validity of the student's reason.</li>
+            <li>View the borrowing history.</li>
+          </ul>
+          <p style="font-size: 13px; color: var(--muted); margin: 16px 0 8px;">What you CANNOT do:</p>
+          <ul style="line-height: 1.6; font-size: 13px; padding-left: 16px; color: #ef4444;">
+            <li>Manage user accounts (Add/Edit/Archive).</li>
+            <li>Reply to Support Tickets (Only Admin can).</li>
+            <li>Borrow books (You are staff).</li>
+          </ul>
+        </div>
+
+        <!-- Admin Role -->
+        <div class="card" id="guide-admin" style="padding: 24px; border-top: 4px solid #f59e0b; background: var(--surface); border-radius: 12px;">
+          <h3 style="margin-top: 0; color: #f59e0b;">🛡️ Admin Role</h3>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">What you CAN do:</p>
+          <ul style="line-height: 1.6; font-size: 13px; padding-left: 16px; color: var(--text);">
+            <li>Add, edit, and archive user accounts.</li>
+            <li>Unarchive previously archived users.</li>
+            <li>View and manage all Support Tickets.</li>
+            <li>Reply to tickets and close/reopen them.</li>
+            <li>View the full borrowing history.</li>
+            <li>Archive or restore history records.</li>
+          </ul>
+          <p style="font-size: 13px; color: var(--muted); margin: 16px 0 8px;">What you CANNOT do:</p>
+          <ul style="line-height: 1.6; font-size: 13px; padding-left: 16px; color: #ef4444;">
+            <li>Borrow books.</li>
+            <li>Approve or process borrow requests (Bookkeeper only).</li>
+            <li>Access the catalog view (Since you don't borrow).</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
 
     <!-- 1. CATALOG VIEW -->
     <section id="view-catalog" hidden>
@@ -201,7 +281,10 @@
 
     <!-- 5. HISTORY VIEW -->
     <section id="view-history" hidden>
-      <h2 style="margin-bottom: 16px;">History</h2>
+      <div class="section-head" style="margin-top: 0; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin: 0;">History</h2>
+        <button class="ghost small" id="btnViewArchivedHistory" onclick="toggleViewArchivedHistory()">Show Archived</button>
+      </div>
       <div class="table-wrap">
         <table id="historyTable">
           <thead id="historyHead"></thead>
@@ -232,6 +315,7 @@
             <option value="date-new">Newest Published</option>
             <option value="date-old">Oldest Published</option>
           </select>
+          <button class="ghost small" id="btnViewArchivedBooks" onclick="toggleViewArchivedBooks()">Show Archived</button>
           <button class="small" onclick="openBookForm()">+ Add New Book</button>
         </div>
       </div>
@@ -251,6 +335,7 @@
         <h2>Account Management</h2>
         <div class="admin-actions">
           <input type="search" id="adminUserSearch" class="admin-search" placeholder="🔍 Search accounts…" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);">
+          <button class="ghost small" id="btnViewArchivedUsers" onclick="toggleViewArchivedUsers()">Show Archived</button>
           <button class="small" onclick="openUserForm()">+ Add Account</button>
         </div>
       </div>
@@ -576,7 +661,6 @@
           <input id="bfCopies" type="number" readonly value="1">
           <button type="button" id="btnPlusCopies" onclick="adjustCopies(1)">+</button>
         </div>
-        <!-- NEW STATS DISPLAY -->
         <div id="bfStats" style="font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.4; font-weight: 500;"></div>
       </div>
       <div class="field"><label>Author</label><input id="bfAuthor"></div>
@@ -684,6 +768,6 @@
   </div>
 </div>
 
-<script src="script.js?v=999"></script>
+<script src="script.js?v=106"></script>
 </body>
 </html>

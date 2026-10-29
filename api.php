@@ -27,6 +27,7 @@ if ($action === 'load') {
             if (isset($row['extensions'])) $row['extensions'] = json_decode($row['extensions'], true) ?: [];
             if (isset($row['replies'])) $row['replies'] = json_decode($row['replies'], true) ?: [];
             if (isset($row['isWaitlist'])) $row['isWaitlist'] = (bool)$row['isWaitlist'];
+            if (isset($row['is_archived'])) $row['is_archived'] = (bool)$row['is_archived'];
         }
         $data[$table] = $results;
     }
@@ -44,7 +45,6 @@ if ($action === 'sync') {
     try {
         $pdo->beginTransaction();
         
-        // We use DELETE instead of TRUNCATE so we can properly ROLLBACK if an error happens!
         $pdo->exec("DELETE FROM users;");
         $pdo->exec("DELETE FROM books;");
         $pdo->exec("DELETE FROM requests;");
@@ -74,22 +74,20 @@ if ($action === 'sync') {
             }
         }
 
-        insertData($pdo, 'users', $input['users'], ['id','name','username','password','role','student_num','section'], ['id','name','username','password','role','studentNum','section']);
-        insertData($pdo, 'books', $input['books'], ['id','title','cat','copies','author','published','icon','summary']);
+        insertData($pdo, 'users', $input['users'], ['id','name','username','password','role','student_num','section','is_archived'], ['id','name','username','password','role','studentNum','section','is_archived']);
+        insertData($pdo, 'books', $input['books'], ['id','title','cat','copies','author','published','icon','summary','is_archived']);
         insertData($pdo, 'requests', $input['requests'], ['id','bookId','studentId','studentName','reqStudentId','reqSection','reqContact','notes','isWaitlist','dateRequested']);
         insertData($pdo, 'loans', $input['loans'], ['id','bookId','borrowerId','borrower','due','notes','extensions']);
-        insertData($pdo, 'history', $input['history'], ['id','bookId','borrowerId','borrower','due','returnedAt','notes','extensions']);
-        insertData($pdo, 'rejections', $input['rejections'], ['id','bookId','studentId','studentName','reqStudentId','reqSection','dateRequested','reason','dateProcessed']);
+        insertData($pdo, 'history', $input['history'], ['id','bookId','borrowerId','borrower','due','returnedAt','notes','extensions','is_archived']);
+        insertData($pdo, 'rejections', $input['rejections'], ['id','bookId','studentId','studentName','reqStudentId','reqSection','dateRequested','reason','dateProcessed','is_archived']);
         insertData($pdo, 'extension_requests', $input['extensionRequests'], ['id','loanId','bookName','studentName','reason']);
         
-        // Backticks around `desc` to prevent keyword crash
         insertData($pdo, 'tickets', $input['tickets'], ['id','userId','userName','subject','`desc`','date','time','status','replies']);
 
         $pdo->commit();
         echo json_encode(["success" => true]);
 
     } catch (Exception $e) {
-        // Check if a transaction is actually active before trying to roll back
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
