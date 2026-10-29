@@ -1,27 +1,4 @@
-// ---- Initial Seed Data ----
-const seedBooks = [
-  { id:1,  title:"Cybersecurity", cat:"IT", copies:10, author:"William Stallings", published:"2022", icon:"🛡️", summary:"A comprehensive guide to securing networks." },
-  { id:2,  title:"Networking", cat:"IT", copies:8, author:"Behrouz A. Forouzan", published:"2021", icon:"🌐", summary:"Fundamentals of data communications." },
-  { id:3,  title:"Fundamentals", cat:"IT", copies:12, author:"Efraim Turban", published:"2019", icon:"💻", summary:"Introduction to information systems." },
-  { id:4,  title:"Web", cat:"IT", copies:7, author:"Jon Duckett", published:"2020", icon:"🕸️", summary:"Guide to front-end web development." },
-  { id:5,  title:"HCI", cat:"IT", copies:5, author:"Alan Dix", published:"2018", icon:"🖱️", summary:"Human-Computer Interaction basics." },
-  { id:6,  title:"Biology", cat:"Science", copies:9, author:"Sylvia S. Mader", published:"2021", icon:"🧬", summary:"Study of living organisms." },
-  { id:7,  title:"Chemistry", cat:"Science", copies:8, author:"Raymond Chang", published:"2019", icon:"🧪", summary:"Composition and properties of matter." },
-  { id:8,  title:"Physics", cat:"Science", copies:7, author:"Douglas C. Giancoli", published:"2020", icon:"⚛️", summary:"Principles of mechanics and thermodynamics." },
-  { id:9,  title:"Earth Science", cat:"Science", copies:6, author:"Edward J. Tarbuck", published:"2018", icon:"🌍", summary:"Geology and meteorology." },
-  { id:10, title:"Environmental Science", cat:"Science", copies:5, author:"G. Tyler Miller", published:"2022", icon:"🌱", summary:"Humans and the natural world." },
-  { id:11, title:"Grammar", cat:"English", copies:12, author:"John E. Warriner", published:"2017", icon:"📝", summary:"English grammar and punctuation." },
-  { id:12, title:"Literature", cat:"English", copies:8, author:"David Damrosch", published:"2019", icon:"📖", summary:"Anthology of world literature." },
-  { id:13, title:"Writing", cat:"English", copies:6, author:"Janet Burroway", published:"2021", icon:"✍️", summary:"Creative writing techniques." },
-  { id:14, title:"Reading", cat:"English", copies:10, author:"Linda Hoyt", published:"2018", icon:"📚", summary:"Reading comprehension strategies." },
-  { id:15, title:"Speaking", cat:"English", copies:5, author:"Stephen E. Lucas", published:"2020", icon:"🎤", summary:"The art of public speaking." },
-  { id:16, title:"Philippine History", cat:"Social Studies", copies:10, author:"Renato Constantino", published:"2015", icon:"🇵🇭", summary:"Nationalist perspective on PH history." },
-  { id:17, title:"World History", cat:"Social Studies", copies:8, author:"William J. Duiker", published:"2019", icon:"🏛️", summary:"Global narrative of human history." },
-  { id:18, title:"Geography", cat:"Social Studies", copies:7, author:"James M. Rubenstein", published:"2021", icon:"🗺️", summary:"Physical and human geography." },
-  { id:19, title:"Economics", cat:"Social Studies", copies:6, author:"Paul A. Samuelson", published:"2018", icon:"📈", summary:"Micro and macroeconomics." },
-  { id:20, title:"Civics", cat:"Social Studies", copies:5, author:"James Q. Wilson", published:"2020", icon:"⚖️", summary:"Government structures and citizenship." }
-];
-
+// ---- Seed Users (Fallback only) ----
 const seedUsers = [
   { id: 1, name: "System Admin", username: "admin", password: "admin123", role: "Admin" },
   { id: 2, name: "Head Bookkeeper", username: "keeper", password: "keeper123", role: "Bookkeeper" },
@@ -29,14 +6,14 @@ const seedUsers = [
 ];
 
 // ---- Load State ----
-let users = JSON.parse(localStorage.getItem("users") || "null") || seedUsers;
-let books = JSON.parse(localStorage.getItem("books") || "null") || seedBooks;
-let loans = JSON.parse(localStorage.getItem("loans") || "[]");
-let history = JSON.parse(localStorage.getItem("history") || "[]");
-let requests = JSON.parse(localStorage.getItem("requests") || "[]");
-let rejections = JSON.parse(localStorage.getItem("rejections") || "[]");
-let extensionRequests = JSON.parse(localStorage.getItem("extReqs") || "[]");
-let tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
+let users = [];
+let books = [];
+let loans = [];
+let history = [];
+let requests = [];
+let rejections = [];
+let extensionRequests = [];
+let tickets = [];
 
 let currentUser = null;
 let currentTicketView = 'ongoing'; 
@@ -85,15 +62,46 @@ function setTheme(theme) {
 
 setTheme(savedTheme);
 
-function save() {
-  localStorage.setItem("users", JSON.stringify(users));
-  localStorage.setItem("books", JSON.stringify(books));
-  localStorage.setItem("loans", JSON.stringify(loans));
-  localStorage.setItem("history", JSON.stringify(history));
-  localStorage.setItem("requests", JSON.stringify(requests));
-  localStorage.setItem("rejections", JSON.stringify(rejections));
-  localStorage.setItem("extReqs", JSON.stringify(extensionRequests));
-  localStorage.setItem("tickets", JSON.stringify(tickets));
+// ---- SAVE FUNCTION (With exact error output) ----
+async function save() {
+  if (currentUser) {
+    localStorage.setItem("session", JSON.stringify(currentUser));
+  }
+
+  const payload = {
+    users: users,
+    books: books,
+    loans: loans,
+    history: history,
+    requests: requests,
+    rejections: rejections,
+    extensionRequests: extensionRequests,
+    tickets: tickets
+  };
+
+  try {
+    const response = await fetch('api.php?action=sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    const text = await response.text();
+    
+    try {
+      const result = JSON.parse(text);
+      if (result.error) {
+        alert("MySQL Save Error:\n" + result.error);
+        console.error("Database Save Error:", result.error);
+      }
+    } catch (e) {
+      alert("PHP Error:\n" + text.substring(0, 300) + "...\n\nCheck F12 Console for details.");
+      console.error("Raw PHP Output:", text);
+    }
+  } catch (error) {
+    alert("Failed to connect to api.php. Is XAMPP running?");
+    console.error("Network error:", error);
+  }
 }
 
 function getThemeClass(cat) {
@@ -121,7 +129,6 @@ $("gcConfirmBtn").onclick = () => {
   pendingConfirmAction = null;
 };
 
-// ---- GLOBAL ESC KEY LISTENER ----
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     document.querySelectorAll(".modal").forEach(m => m.hidden = true);
@@ -129,7 +136,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// ---- AUTHENTICATION (FORM SUBMIT) ----
+// ---- AUTHENTICATION ----
 $("loginForm").onsubmit = (e) => {
   e.preventDefault();
   $("loginErr").textContent = "";
@@ -154,7 +161,7 @@ $("logout").onclick = () => {
   $("app").hidden = true;
 };
 
-// ---- GUEST TICKETS (From Login Page) ----
+// ---- GUEST TICKETS ----
 function openAuthTicketModal(e) {
   e.preventDefault();
   $("authName").value = "";
@@ -294,7 +301,7 @@ function showApp() {
   const isAdmin = currentUser.role === "Admin";
 
   $("navCatalog").hidden = isAdmin;
-  $("navMyRequests").hidden = !isStudent; // Show only to Student
+  $("navMyRequests").hidden = !isStudent; 
   $("navRequests").hidden = !isBookkeeper;
   $("navLoans").hidden = isAdmin;
   $("navHistory").hidden = isAdmin;
@@ -311,7 +318,6 @@ function showApp() {
   else switchView("catalog");
 }
 
-// ---- NAVIGATION ----
 function switchView(viewName) {
   ['catalog', 'my-requests', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
     $("view-" + v).hidden = true;
@@ -413,7 +419,7 @@ function openBookInfo(id) {
   $("bookInfoModal").hidden = false;
 }
 
-// ---- STUDENT: REQUEST BORROWING (WITH WAITLIST) ----
+// ---- STUDENT: REQUESTS ----
 let requestingBookId = null;
 let isWaitlistReq = false;
 
@@ -463,7 +469,6 @@ function submitRequest() {
   renderCatalog();
 }
 
-// ---- STUDENT: MY REQUESTS VIEW ----
 function renderMyRequests() {
   const myReqs = requests.filter(r => r.studentId === currentUser.id);
   
@@ -495,11 +500,11 @@ function cancelRequest(reqId) {
     requests = requests.filter(r => r.id !== reqId);
     save();
     renderMyRequests();
-    renderCatalog(); // Update button in catalog
+    renderCatalog(); 
   });
 }
 
-// ---- BOOKKEEPER: APPROVE/REJECT REQUESTS ----
+// ---- BOOKKEEPER: REQUESTS ----
 function renderRequests() {
   $("noRequests").hidden = requests.length > 0;
   $("requestsBody").innerHTML = requests.map(r => {
@@ -1359,9 +1364,44 @@ function submitReply() {
   renderTickets(); 
 }
 
-// ---- INIT ----
-const savedSession = localStorage.getItem("session");
-if (savedSession) {
-  currentUser = JSON.parse(savedSession);
-  showApp();
+// ---- INIT (NO BOOK SEEDING) ----
+async function initApp() {
+  try {
+    const response = await fetch('api.php?action=load&t=' + Date.now(), { cache: 'no-store' });
+    const data = await response.json();
+    
+    let needsSave = false;
+
+    if (!data.users || data.users.length === 0) {
+      users = seedUsers;
+      needsSave = true;
+    } else {
+      users = data.users;
+    }
+
+    // Pull books purely from the database
+    books = data.books || [];
+
+    loans = data.loans || [];
+    history = data.history || [];
+    requests = data.requests || [];
+    rejections = data.rejections || [];
+    extensionRequests = data.extension_requests || [];
+    tickets = data.tickets || [];
+
+    if (needsSave) {
+      await save(); 
+    }
+
+    const savedSession = localStorage.getItem("session");
+    if (savedSession) {
+      currentUser = JSON.parse(savedSession);
+      showApp();
+    }
+  } catch (error) {
+    console.error("Failed to load initial data from database:", error);
+  }
 }
+
+// Start the app
+initApp();
