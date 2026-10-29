@@ -1,177 +1,211 @@
-```markdown
-# 📚 Library Management System (Full-Stack)
+<div align="center">
 
-A fully functional, database-driven Library Management System built from scratch using **Vanilla JavaScript**, **PHP**, and **MySQL**. This project features role-based access control, a modern responsive UI, soft-deletion (archiving), and real-time database synchronization.
+# 📚 Library Management System
+
+**A full-stack, database-driven library portal built from scratch with vanilla JavaScript, PHP, and MySQL.**
+
+No frameworks. No build step. No npm install. Just a browser, Apache, and a database.
+
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript_ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![PHP](https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)
+
+`3 roles` · `8 tables` · `5 themes` · `20 seeded books` · `0 dependencies`
+
+</div>
+
+---
+
+## 📖 Table of Contents
+
+| | |
+|---|---|
+| [Overview](#-overview) | [How It's Built](#-how-its-built) |
+| [Features](#-features) | [Getting Started](#-getting-started) |
+| [Roles & Permissions](#-roles--permissions) | [Database Schema](#-database-schema) |
+| [Demo Accounts](#-demo-accounts) | [API Reference](#-api-reference) |
+| [Project Structure](#-project-structure) | [Design Notes](#-design-notes--trade-offs) |
+| [Themes](#-themes) | [Troubleshooting](#-troubleshooting) |
+
+---
+
+## 🔭 Overview
+
+This is a complete library operation in a single-page app: students browse a real catalog and request books, a bookkeeper approves loans and processes returns, and an administrator manages accounts and support tickets. Every change is written back to MySQL through a small PHP API.
+
+It was built as a "no shortcuts" exercise — the UI is hand-written DOM code, the state layer is plain JavaScript objects, and the backend is a single PDO-backed endpoint.
+
+> [!NOTE]
+> The app **seeds itself on first load**. If the `users` and `books` tables are empty, the browser inserts the 3 demo accounts and 20 reference books automatically. You only need to create the schema — not the data.
+
+---
+
+## 🏗 How It's Built
+
+```mermaid
+flowchart LR
+    subgraph Browser["🖥️ Browser — Vanilla JS SPA"]
+        UI["index.html<br/>views, modals, login"]
+        JS["script.js<br/>state + render + fetch"]
+        CSS["styles.css<br/>5 themes"]
+        UI --> JS --> CSS
+    end
+
+    subgraph Server["⚙️ Apache + PHP"]
+        API["api.php<br/>load / sync"]
+        DB["db.php<br/>PDO connection"]
+        API --- DB
+    end
+
+    DB --> SQL[("🗄️ MySQL<br/>library_system<br/>8 tables")]
+
+    JS -- "GET api.php?action=load" --> API
+    JS -- "POST api.php?action=sync" --> API
+```
+
+| Layer | File | Responsibility |
+| :--- | :--- | :--- |
+| **Shell** | `index.html` | Login screen, all views, and every modal — one page, no routing library |
+| **Presentation** | `styles.css` | Layout, responsive grid, and 5 swappable theme variable sets |
+| **Application** | `script.js` | State, role gating, every workflow, `fetch()` calls |
+| **API** | `api.php` | Two actions: `load` (read everything) and `sync` (write everything) |
+| **Data access** | `db.php` | PDO connection with exception-mode errors |
+
+---
 
 ## ✨ Features
 
 ### 🎓 Role-Based Access Control
-*   **Admin:** Manage user accounts, handle support tickets, view/archive history, and monitor system activity.
-*   **Bookkeeper:** Manage book inventory, approve/reject borrow requests, process returns, and review loan extension requests.
-*   **Student:** Browse the catalog, request books (or join waitlists), track active loans, and request extensions.
+Visibility is decided per role, not just per button — a Student never loads the account-management view, and an Admin never loads the catalog, because those flows don't apply to them.
 
-### 📖 Catalog & Inventory Management
-*   **Real Reference Books:** Seeded with actual IT, Science, English, and Social Studies books (published 2020–2026) complete with cover images and reference links.
-*   **Search & Filters:** Search by title/author, filter by category, and filter by publication year (e.g., 2020–2026).
-*   **Archive System:** Instead of permanently deleting data, users/books/history are "Archived" (Soft Delete) and can be restored later.
+- **Admin** — manage accounts (create, edit, archive, restore) and run the support desk: read tickets, reply, close, and reopen.
+- **Bookkeeper** — own the inventory, approve or reject borrow requests, set due dates, process returns, and judge extension requests.
+- **Student** — browse and search, request books or join waitlists, track loans, and ask for extensions.
 
-### 🔄 Borrowing & Workflows
-*   **Limits Enforced:** Students can borrow a maximum of **5 books total** at a time, limited to **1 copy per book title**.
-*   **Waitlist System:** If a book is out of stock, students can join a waitlist.
-*   **Extensions:** Students can request due-date extensions. Bookkeepers can approve/reject them based on the validity of the provided reason.
-*   **Support Tickets:** Users can submit tickets for account recovery or issues, which the Admin can view and reply to.
+### 📖 Catalog & Inventory
+- **Real reference books** — 20 seeded titles across **IT, Science, English, and Social Studies** (5 each, published 2020–2025) with cover images, summaries, and links to the source material.
+- **Search everything** — one box matches title, category, author, summary, and year.
+- **Filters & sorting** — filter by category or by year (including a 2020–2026 range); sort by title, author, or publication date in either direction.
+- **Live availability** — copies on hand are computed from active loans, so a title flips to *out of stock* the moment its last copy is borrowed.
+- **Category accents** — each category carries its own color through the card border and badge.
+
+### 🔄 Borrowing Workflows
+- **A stated borrowing policy** — max **5 active loans**, **1 copy per title**, **14-day** standard period. The rule is surfaced to both students and bookkeepers inside the app; the bookkeeper applies it when approving. (It is *not* hard-blocked in code — see [Design Notes](#-design-notes--trade-offs).)
+- **Waitlist** — an out-of-stock title swaps its request button for *Join waitlist*; the request is flagged `WAITLIST` in the bookkeeper's queue.
+- **Rejections are recorded** — a declined request is saved with its reason and appears in that student's history, instead of vanishing with the modal.
+- **Extensions** — students submit a reason; on approval the old and new due dates are both appended to the loan's audit trail instead of overwriting history.
+- **Returns** — processing a return moves the loan into history and immediately frees the copy.
+
+### 🗄️ Archiving Instead of Deleting
+Users, books, history records, and rejections all carry an `is_archived` flag, and the **Accounts**, **Manage Books**, and **History** views each have a *Show Archived / Show Active* toggle. Nothing is ever destroyed by accident, and anything archived can be restored.
+
+### 🎫 Support Tickets
+- Any signed-in student can open a support ticket; the Admin sees an **Open / Resolved** queue.
+- Replies are threaded and stored per ticket; the Admin can close and reopen a conversation.
+- **Locked-out users are handled too** — the login screen offers a guest account-recovery form and a ticket tracker (keyed to the browser via `localStorage`), so someone who can't sign in can still reach a human.
 
 ### 🎨 UI/UX
-*   **5 Dynamic Themes:** Midnight Ocean, Warm Alabaster, Parchment Archive, Reading Room, and Sage Morning.
-*   **Responsive Design:** Fully responsive layout that works on mobile and desktop.
+- **5 themes**, switchable live and remembered per browser.
+- Fully responsive: the header collapses, tables scroll, and forms reflow to one column on mobile.
+- Accessible-ish defaults throughout: `hidden` rather than `display:none` for views, real form elements, and keyboard-submittable login.
 
 ---
 
-## 🛠️ Tech Stack
-*   **Frontend:** HTML5, CSS3, Vanilla JavaScript (ES6+)
-*   **Backend:** PHP (PDO)
-*   **Database:** MySQL (MariaDB)
+## 🔑 Roles & Permissions
+
+| Capability | 🎓 Student | 📚 Bookkeeper | 🛡️ Admin |
+| :--- | :---: | :---: | :---: |
+| Browse & search the catalog | ✅ | ✅ | — |
+| Request a book / join a waitlist | ✅ | — | — |
+| Track own requests & due dates | ✅ | — | — |
+| Approve / reject borrow requests | — | ✅ | — |
+| Set due dates & process returns | — | ✅ | — |
+| Request a loan extension | ✅ | — | — |
+| Review extension requests | — | ✅ | — |
+| Add / edit / archive books | — | ✅ | — |
+| Add / edit / archive accounts | — | — | ✅ |
+| View borrowing history | own | all | — |
+| Archive / restore history | — | ✅ | —\* |
+| Open a support ticket | ✅ | — | — |
+| Reply to & resolve tickets | — | — | ✅ |
+
+> [!TIP]
+> Not sure where to start? Sign in as **student** to see the catalog, then as **keeper** to approve that student's request, then as **admin** to see the account and ticket side of the app.
+>
+> \* The archive/restore logic for history records is fully implemented, but the **History** tab is hidden for the Admin role in `showApp()`, so in practice only the Bookkeeper reaches it — see [Design Notes](#-design-notes--trade-offs).
 
 ---
 
-## 🚀 How to Run Locally (Setup Guide)
+## 🚀 Getting Started
 
 ### Prerequisites
-*   [XAMPP](https://www.apachefriends.org/index.html) (for Apache web server).
-*   [MySQL Server & Workbench](https://dev.mysql.com/downloads/workbench/) (If you installed Workbench, the standalone MySQL Server usually runs automatically as a Windows Service).
 
-### Step 1: Setup the Project Folder
-1. Clone this repository or download the files.
-2. Move the folder into your XAMPP `htdocs` directory. 
-   *(Example: `D:\Xampp\htdocs\library` or `C:\xampp\htdocs\library`)*
+| Requirement | Why |
+| :--- | :--- |
+| [XAMPP](https://www.apachefriends.org/index.html) | Apache + PHP. (Any Apache/PHP 8 stack works.) |
+| MySQL 8 **or** MariaDB | The database. Either the standalone MySQL Server or the one bundled with XAMPP. |
+| [MySQL Workbench](https://dev.mysql.com/downloads/workbench/) *(optional)* | A GUI for running the schema — any MySQL client is fine. |
 
-### Step 2: Start the Servers
-1. Open **XAMPP Control Panel** and start **Apache**. 
-   *(Note: You do NOT need to start the MySQL module inside XAMPP if you are using the standalone MySQL Server installed with MySQL Workbench).*
-2. Ensure your standalone **MySQL Server** is running in the background (Check Windows Services or Task Manager).
+> [!IMPORTANT]
+> **XAMPP and MySQL Workbench are two different things — don't mix them up.**
+>
+> - **XAMPP** ships Apache (the web server that runs PHP) *and* a copy of **MariaDB**, which it calls "MySQL" in its control panel.
+> - **MySQL Workbench** is only a *client* — a GUI for talking to a server. If you installed the standalone **MySQL Server** with it (the standard installer does this), that server runs as a **Windows service** in the background, usually on port **3306**.
+>
+> Both servers want port **3306**, so run **one or the other** — never both. This guide follows **Path B**, which is the setup `db.php` ships with; if you prefer Path A, just simplify the credentials in Step 4.
 
-### Step 3: Setup the Database
-1. Open **MySQL Workbench** and connect to your local instance (`localhost:3306`).
-2. Open a new query tab and run the following SQL script to create the database, tables, and seed the initial books:
+**Pick a path:**
 
-```sql
-CREATE DATABASE IF NOT EXISTS library_system;
-USE library_system;
+| Path | Start in XAMPP | Database server | `db.php` credentials |
+| :--- | :--- | :--- | :--- |
+| **A · all-in-one** | Apache **+ MySQL** | XAMPP's bundled MariaDB | `root` / *(empty)* |
+| **B · standalone** *(this guide)* | **Apache only** | The MySQL Server installed with Workbench | `library_admin` / your password |
 
--- 1. Users Table
-CREATE TABLE users (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100),
-    username VARCHAR(50) UNIQUE,
-    password VARCHAR(255),
-    role VARCHAR(50),
-    student_num VARCHAR(50),
-    section VARCHAR(50),
-    is_archived TINYINT(1) DEFAULT 0
-);
 
--- 2. Books Table
-CREATE TABLE books (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255),
-    cat VARCHAR(50),
-    copies INT,
-    author VARCHAR(100),
-    published VARCHAR(10),
-    icon VARCHAR(10),
-    summary TEXT,
-    cover_url VARCHAR(500),
-    reference_url VARCHAR(500),
-    is_archived TINYINT(1) DEFAULT 0
-);
+---
 
--- 3. Requests Table
-CREATE TABLE requests (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    bookId BIGINT,
-    studentId BIGINT,
-    studentName VARCHAR(100),
-    reqStudentId VARCHAR(50),
-    reqSection VARCHAR(50),
-    reqContact VARCHAR(100),
-    notes TEXT,
-    isWaitlist BOOLEAN,
-    dateRequested VARCHAR(50)
-);
+### Step 1 — Put the project in `htdocs`
 
--- 4. Loans Table
-CREATE TABLE loans (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    bookId BIGINT,
-    borrowerId BIGINT,
-    borrower VARCHAR(100),
-    due VARCHAR(50),
-    notes TEXT,
-    extensions LONGTEXT
-);
+Clone or download this repository, then move the folder into XAMPP's web root:
 
--- 5. History Table
-CREATE TABLE history (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    bookId BIGINT,
-    borrowerId BIGINT,
-    borrower VARCHAR(100),
-    due VARCHAR(50),
-    returnedAt VARCHAR(50),
-    notes TEXT,
-    extensions LONGTEXT,
-    is_archived TINYINT(1) DEFAULT 0
-);
-
--- 6. Rejections Table
-CREATE TABLE rejections (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    bookId BIGINT,
-    studentId BIGINT,
-    studentName VARCHAR(100),
-    reqStudentId VARCHAR(50),
-    reqSection VARCHAR(50),
-    dateRequested VARCHAR(50),
-    reason TEXT,
-    dateProcessed VARCHAR(50),
-    is_archived TINYINT(1) DEFAULT 0
-);
-
--- 7. Extension Requests Table
-CREATE TABLE extension_requests (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    loanId BIGINT,
-    bookName VARCHAR(255),
-    studentName VARCHAR(100),
-    reason TEXT
-);
-
--- 8. Tickets Table
-CREATE TABLE tickets (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    userId VARCHAR(50),
-    userName VARCHAR(100),
-    subject VARCHAR(255),
-    `desc` TEXT,
-    date VARCHAR(50),
-    time VARCHAR(50),
-    status VARCHAR(50),
-    replies LONGTEXT
-);
+```text
+C:\xampp\htdocs\library      (or D:\Xampp\htdocs\library)
 ```
 
-Step 4: Configure Database Connection
+You should end up with `...\htdocs\library\index.html` as a direct child.
 
-1. Open the db.php file in your code editor.
-2. Update the credentials to match your MySQL setup. 
-   (Note: The default password for the root user in a standalone MySQL Server installation is often required, whereas XAMPP's default is usually empty '').
+### Step 2 — Start the servers
+
+1. Open the **XAMPP Control Panel** and start **Apache**.
+2. Confirm your **MySQL Server** is running: open **Services** (`Win + R` → `services.msc`) and look for `MySQL80`, *or* check the Workbench home screen shows a live local instance.
+3. Verify port **3306** is listening:
+
+```powershell
+netstat -ano | findstr :3306
+```
+
+> [!WARNING]
+> If you see two servers fighting over 3306, XAMPP's MySQL will fail to start with an "unexpected shutdown" error. Leave XAMPP's MySQL **stopped** when using the standalone server (or vice versa) — never both.
+
+### Step 3 — Create the database & tables
+
+Open **MySQL Workbench**, connect to your local instance, open a new query tab, and run the script from the [Database Schema](#-database-schema) section below.
+
+That's all the SQL you need — **the app seeds its own data.** On first load the JavaScript detects empty `users` and `books` tables and inserts the 3 demo accounts plus 20 books.
+
+### Step 4 — Configure the connection
+
+Open `db.php` and match it to your setup:
 
 ```php
 <?php
-$host = 'localhost';
+$host = '127.0.0.1';
 $db   = 'library_system';
-$user = 'root'; 
-$pass = 'YOUR_MYSQL_PASSWORD'; // Update this if needed
+$user = 'library_admin';
+$pass = 'YOUR_MYSQL_PASSWORD';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass);
@@ -179,47 +213,288 @@ try {
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
-?>
 ```
 
-Step 5: Run the App
+Two supported options:
 
-1. Open your browser.
-2. Go to: http://localhost/library/index.html
-3. The JavaScript will detect that the database tables are empty and automatically seed the 3 default users and 20 reference books on the first load.
+**Option 1 · Dedicated user (recommended).** Run this once in Workbench, then leave `db.php` as-is and set the password:
 
----
+```sql
+CREATE USER 'library_admin'@'localhost'
+  IDENTIFIED BY 'YOUR_MYSQL_PASSWORD';
 
-🔐 Demo Accounts
+GRANT ALL PRIVILEGES
+  ON library_system.*
+  TO 'library_admin'@'localhost';
 
-Use the following credentials to test the different roles:
-
-Role Username Password
-Admin admin admin123
-Bookkeeper keeper keeper123
-Student student student123
-
----
-
-📂 Project Structure
-
-· index.html - The main UI shell containing all views, modals, and login screen.
-· styles.css - The styling, responsive grid, and all 5 theme variables.
-· script.js - The core logic. Handles DOM manipulation, state management, role-based rendering, and fetch() API calls.
-· api.php - The REST API endpoint. Handles load (fetching data) and sync (saving data to MySQL).
-· db.php - PDO database connection script.
-
----
-
-⚠️ Notes on Architecture
-
-· Full Sync Saving: To mimic a real-time database without building complex individual REST endpoints (like POST /books, PUT /users), this project uses a sync method. Every time you make a change, the JavaScript payload sends the entire state of the application to api.php. PHP then safely truncates the tables inside a transaction and re-inserts the updated data.
-· Archiving vs. Deleting: Data is never hard-deleted from the database via the UI. Clicking "Archive" toggles the is_archived flag to 1, keeping the data intact for historical records.
-
----
-
-📄 License
-
-This project is open-source and available under the MIT License.
-
+FLUSH PRIVILEGES;
 ```
+
+**Option 2 · Use `root`.** Change the two credential lines in `db.php`:
+
+```php
+$user = 'root';
+$pass = 'your_root_password';
+```
+
+XAMPP's default root password is **empty** (`''`); standalone MySQL Server requires **the password you set during installation**.
+
+> [!NOTE]
+> `127.0.0.1` is used instead of `localhost` on purpose. On Windows, `localhost` can make PDO attempt a named pipe/socket and fail; `127.0.0.1` forces a TCP connection to 3306.
+
+### Step 5 — Run it
+
+Open **<http://localhost/library/index.html>** and sign in with one of the [demo accounts](#-demo-accounts).
+
+**Expected first-load sequence**
+
+1. `api.php?action=load` returns empty `users` / `books`.
+2. The app swaps in its seed data and immediately calls `sync`.
+3. You land on the login screen; the roles now exist in MySQL.
+
+If the page loads but the catalog is empty, open DevTools → **Network** and check the `api.php` response — see [Troubleshooting](#-troubleshooting).
+
+---
+
+## 💾 Database Schema
+
+Eight tables, no foreign keys, no stored procedures. Relationships are by convention (`bookId`, `studentId`, `borrowerId`), and IDs are assigned in JavaScript.
+
+<details open>
+<summary><b>📋 Create script — run this once in MySQL Workbench</b></summary>
+
+<br>
+
+```sql
+CREATE DATABASE IF NOT EXISTS library_system
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE library_system;
+
+-- 1. Accounts (all three roles live here)
+CREATE TABLE users (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(100),
+    username    VARCHAR(50) UNIQUE,
+    password    VARCHAR(255),
+    role        VARCHAR(50),          -- Admin | Bookkeeper | Student
+    student_num VARCHAR(50),
+    section     VARCHAR(50),
+    is_archived TINYINT(1) DEFAULT 0
+);
+
+-- 2. Catalog
+CREATE TABLE books (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title         VARCHAR(255),
+    cat           VARCHAR(50),        -- IT | Science | English | Social Studies
+    copies        INT,
+    author        VARCHAR(100),
+    published     VARCHAR(10),
+    icon          VARCHAR(10),
+    summary       TEXT,
+    cover_url     VARCHAR(500),
+    reference_url VARCHAR(500),
+    is_archived   TINYINT(1) DEFAULT 0
+);
+
+-- 3. Pending borrow requests (including waitlists)
+CREATE TABLE requests (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    bookId        BIGINT,
+    studentId     BIGINT,
+    studentName   VARCHAR(100),
+    reqStudentId  VARCHAR(50),
+    reqSection    VARCHAR(50),
+    reqContact    VARCHAR(100),
+    notes         TEXT,
+    isWaitlist    BOOLEAN,
+    dateRequested VARCHAR(50)
+);
+
+-- 4. Active loans
+CREATE TABLE loans (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    bookId     BIGINT,
+    borrowerId BIGINT,
+    borrower   VARCHAR(100),
+    due        VARCHAR(50),
+    notes      TEXT,
+    extensions LONGTEXT               -- JSON array of { oldDue, newDue, reason }
+);
+
+-- 5. Returned loans
+CREATE TABLE history (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    bookId      BIGINT,
+    borrowerId  BIGINT,
+    borrower    VARCHAR(100),
+    due         VARCHAR(50),
+    returnedAt  VARCHAR(50),
+    notes       TEXT,
+    extensions  LONGTEXT,
+    is_archived TINYINT(1) DEFAULT 0
+);
+
+-- 6. Rejected requests (audit trail with reason)
+CREATE TABLE rejections (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    bookId        BIGINT,
+    studentId     BIGINT,
+    studentName   VARCHAR(100),
+    reqStudentId  VARCHAR(50),
+    reqSection    VARCHAR(50),
+    dateRequested VARCHAR(50),
+    reason        TEXT,
+    dateProcessed VARCHAR(50),
+    is_archived   TINYINT(1) DEFAULT 0
+);
+
+-- 7. Extension requests awaiting review
+CREATE TABLE extension_requests (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    loanId      BIGINT,
+    bookName    VARCHAR(255),
+    studentName VARCHAR(100),
+    reason      TEXT
+);
+
+-- 8. Support tickets (desc is a reserved word — hence the backticks)
+CREATE TABLE tickets (
+    id       BIGINT AUTO_INCREMENT PRIMARY KEY,
+    userId   VARCHAR(50),             -- numeric id, or "guest"
+    userName VARCHAR(100),
+    subject  VARCHAR(255),
+    `desc`   TEXT,
+    date     VARCHAR(50),
+    time     VARCHAR(50),
+    status   VARCHAR(50),             -- Open | Resolved
+    replies  LONGTEXT                 -- JSON array of { sender, text, date }
+);
+```
+
+</details>
+
+### Table reference
+
+| Table | Holds | Notable columns |
+| :--- | :--- | :--- |
+| `users` | Every account, all roles | `role` drives the entire UI; `is_archived` |
+| `books` | Catalog + inventory | `copies` (on hand), `cover_url`, `reference_url`, `is_archived` |
+| `requests` | Pending borrow/waitlist asks | `isWaitlist`, `reqStudentId`, `reqContact` |
+| `loans` | Currently borrowed books | `due`, `extensions` (JSON audit trail) |
+| `history` | Completed loans | `returnedAt`, `is_archived` |
+| `rejections` | Declined requests | `reason`, `dateProcessed`, `is_archived` |
+| `extension_requests` | Pending due-date extensions | `loanId` links back to `loans` |
+| `tickets` | Support conversations | `status`, `replies` (JSON thread) |
+
+> [!NOTE]
+> Dates are stored as `VARCHAR` (`YYYY-MM-DD` strings) rather than `DATE`/`DATETIME`. This keeps the JSON round-trip between the browser and PHP lossless without any timezone or serialization conversion. See [Design Notes](#-design-notes--trade-offs) for the trade-off.
+
+---
+
+## 🔐 Demo Accounts
+
+| Role | Username | Password | Lands on |
+| :--- | :--- | :--- | :--- |
+| 🛡️ **Admin** | `admin` | `admin123` | Accounts |
+| 📚 **Bookkeeper** | `keeper` | `keeper123` | Borrow Requests |
+| 🎓 **Student** | `student` | `student123` | Catalog |
+
+> [!CAUTION]
+> These are **plain-text demo credentials** committed for convenience. Before deploying anywhere real, hash passwords with `password_hash()` and verify with `password_verify()`, and remove the demo block from the login screen.
+
+---
+
+## 🔌 API Reference
+
+One file, two actions, both JSON.
+
+### `GET api.php?action=load`
+
+Returns every row of every table in one payload, normalized for JavaScript:
+
+```json
+{
+  "users":  [{ "id": 1, "studentNum": "2024-00123", "is_archived": false }],
+  "books":  [{ "id": 1, "title": "…", "copies": 5 }],
+  "requests": [], "loans": [], "history": [],
+  "rejections": [], "extension_requests": [], "tickets": []
+}
+```
+
+Normalizations applied server-side:
+
+| Column | Becomes |
+| :--- | :--- |
+| `id`, `bookId`, `studentId`, `borrowerId`, `loanId` | `int` |
+| `student_num` | `studentNum` |
+| `extensions`, `replies` | decoded JSON (arrays), not strings |
+| `isWaitlist`, `is_archived` | real booleans |
+
+### `POST api.php?action=sync`
+
+Accepts the **entire application state**:
+
+```json
+{
+  "users": [], "books": [], "loans": [], "history": [],
+  "requests": [], "rejections": [], "extensionRequests": [], "tickets": []
+}
+```
+
+Runs inside a single transaction: `DELETE` all rows, then re-`INSERT` the payload. Responds with `{"success": true}` or `{"error": "…"}` and rolls back on failure.
+
+> [!TIP]
+> The client appends a cache-buster (`&t=` + timestamp) and sends `no-store`, so stale GETs can't resurrect old data after a sync.
+
+---
+
+## 📂 Project Structure
+
+```text
+LMS/
+├── index.html    ~800 lines  · login screen, 9 views, all modals
+├── styles.css    ~300 lines  · 5 theme variable sets, grid, responsive rules
+├── script.js   ~1,700 lines  · state, role gating, every workflow
+├── api.php       ~100 lines  · load + sync endpoints (PDO, transactions)
+├── db.php         ~12 lines  · PDO connection (edit credentials here)
+└── README.md
+```
+
+<details>
+<summary><b>What lives where inside the big files</b></summary>
+
+<br>
+
+**`index.html`** — one `<section>` per view, all hidden by default and toggled by `switchView()`:
+
+| View | Section id | Visible to |
+| :--- | :--- | :--- |
+| Guidelines | `view-info` | everyone |
+| Catalog | `view-catalog` | Student, Bookkeeper |
+| My Requests | `view-my-requests` | Student |
+| Borrow Requests | `view-requests` | Bookkeeper |
+| Active Loans | `view-loans` | Student, Bookkeeper |
+| History | `view-history` | Student, Bookkeeper |
+| Manage Books | `view-books` | Bookkeeper |
+| Accounts | `view-users` | Admin |
+| Support Tickets | `view-tickets` | Student, Admin |
+
+**`script.js`** — in rough execution order:
+
+| Region | Purpose |
+| :--- | :--- |
+| `seedUsers` / `seedBooks` | First-run data, used only when the DB is empty |
+| Theme block | Reads `localStorage.themeName`, applies `data-theme`, remembers choice |
+| `save()` | Serializes state → `POST api.php?action=sync`, surfaces PHP errors as alerts |
+| `showApp()` / `switchView()` | Role gating and view rendering |
+| `renderCatalog()` … `renderTickets()` | One render function per view, rebuilding tables/cards from state |
+| Modal + workflow handlers | `approveRequest`, `returnBook`, `approveExtension`, `archiveUser`, … |
+| `initApp()` | Loads from the API, seeds if empty, restores the saved session |
+
+</details>
+
+---
+
+## 🧠 Design 
