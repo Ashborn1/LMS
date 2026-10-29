@@ -26,7 +26,12 @@
 
     <p id="loginErr" class="err"></p>
     
-    
+    <div style="margin-top: 16px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5;">
+      <strong>Demo Accounts:</strong><br>
+      Admin: admin / admin123<br>
+      Bookkeeper: keeper / keeper123<br>
+      Student: student / student123
+    </div>
 
     <div class="auth-links" style="display: flex; flex-direction: column; gap: 8px;">
       <a href="#" onclick="openAuthTicketModal(event)">Forgot username or password?</a>
@@ -132,7 +137,6 @@
         <h2>Library Rules & Guidelines</h2>
       </div>
       
-      <!-- Quick Rules (Dynamic based on Role) -->
       <div class="grid" style="grid-template-columns: 1fr; gap: 24px; margin-bottom: 24px;">
         <div class="card" style="padding: 24px; border-left: 5px solid var(--primary); background: var(--surface); border-radius: 12px;">
           <h3 id="generalRulesTitle" style="margin-top: 0; color: var(--primary);">📌 Quick Rules</h3>
@@ -223,6 +227,15 @@
           <option value="Science">Science</option>
           <option value="English">English</option>
           <option value="Social Studies">Social Studies</option>
+        </select>
+        <select id="yearFilter">
+          <option value="all">All Years</option>
+          <option value="2020-2026">2020 - 2026 (Recent)</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+          <option value="2022">2022</option>
+          <option value="2021">2021</option>
+          <option value="2020">2020</option>
         </select>
         <select id="sortCatalog">
           <option value="title-asc">Title (A–Z)</option>
@@ -625,7 +638,7 @@
   <div class="modal-box">
     <div class="modal-head" style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px;">
       <div id="biCover" class="book-cover-large">📘</div>
-      <div>
+      <div style="flex: 1;">
         <h3 id="biTitle" style="margin-bottom: 8px;"></h3>
         <span id="biCategory" class="cat"></span>
       </div>
@@ -638,6 +651,12 @@
     <div style="margin-top: 16px;">
       <h4 style="margin: 0 0 8px; font-size: 13px; color: var(--muted); text-transform: uppercase;">Summary</h4>
       <p id="biSummary" style="margin: 0; font-size: 14px; line-height: 1.6; color: var(--text); background: var(--surface-2); padding: 16px; border-radius: 12px;"></p>
+    </div>
+    <!-- NEW: Reference Link Button -->
+    <div id="biReferenceDiv" style="margin-top: 16px; display: none;">
+      <a id="biReferenceLink" href="#" target="_blank" class="small" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; background: var(--primary-grad); color: #fff; padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);">
+        <span>🔗</span> View Reference Source
+      </a>
     </div>
     <div class="modal-actions">
       <button class="ghost" onclick="$('bookInfoModal').hidden = true">Close</button>
@@ -665,7 +684,22 @@
       </div>
       <div class="field"><label>Author</label><input id="bfAuthor"></div>
       <div class="field"><label>Published Year</label><input id="bfPublished" placeholder="e.g. 2023"></div>
-      <div class="field full"><label>Icon (Emoji)</label><input id="bfIcon" value="📘"></div>
+      
+      <div class="field full">
+        <label>Cover Image URL</label>
+        <input id="bfCoverUrl" placeholder="e.g. images/book1.jpg or https://...">
+        <small style="color: var(--muted); font-size: 11px; margin-top: 4px;">Leave blank to use the default emoji.</small>
+      </div>
+      <div class="field full">
+        <label>Reference Link (Store/Publisher URL)</label>
+        <input id="bfReferenceUrl" placeholder="e.g. https://amazon.com/dp/...">
+        <small style="color: var(--muted); font-size: 11px; margin-top: 4px;">This will be shown as a button in the book details.</small>
+      </div>
+      <div class="field full">
+        <label>Fallback Icon (Emoji)</label>
+        <input id="bfIcon" value="📘">
+      </div>
+      
       <div class="field full"><label>Summary</label><textarea id="bfSummary" rows="3" style="width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-family: inherit; color: var(--text);"></textarea></div>
     </div>
     <div class="modal-actions">
@@ -768,6 +802,6 @@
   </div>
 </div>
 
-<script src="script.js?v=106"></script>
+<script src="script.js?v=109"></script>
 </body>
 </html>
