@@ -76,7 +76,6 @@ if ($action === 'sync') {
 
         insertData($pdo, 'users', $input['users'], ['id','name','username','password','role','student_num','section','is_archived'], ['id','name','username','password','role','studentNum','section','is_archived']);
         
-        // Added reference_url to books
         insertData($pdo, 'books', $input['books'], ['id','title','cat','copies','author','published','icon','summary','cover_url','reference_url','is_archived']);
         
         insertData($pdo, 'requests', $input['requests'], ['id','bookId','studentId','studentName','reqStudentId','reqSection','reqContact','notes','isWaitlist','dateRequested']);
