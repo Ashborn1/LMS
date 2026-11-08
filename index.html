@@ -43,11 +43,27 @@
 <!-- APP -->
 <div id="app" hidden>
   <header>
-    <div class="logo-area">
+    <!-- Left: Logo -->
+    <div class="logo-area" style="flex: 1; justify-content: flex-start;">
       <span class="logo-icon">📚</span>
       <h1>Library System</h1>
     </div>
-    <div class="header-actions">
+    
+    <!-- Center: Global Search -->
+    <div class="global-search-wrapper" style="flex: 2; max-width: 500px; margin: 0 20px;">
+      <span class="global-search-icon">🔍</span>
+      <input type="text" id="globalSearch" placeholder="Search books, users, loans..." autocomplete="off">
+      <div id="globalSearchResults" class="global-search-results"></div>
+    </div>
+
+    <!-- Right: Clock, User, Theme, Logout -->
+    <div class="header-actions" style="flex: 1; justify-content: flex-end;">
+      <!-- Global Clock -->
+      <div class="global-clock" id="globalClock">
+        <span id="clockDate">Jan 1, 2024</span>
+        <small id="clockTime">12:00:00 PM</small>
+      </div>
+
       <div class="user-menu" onclick="openProfile()" title="Edit my profile" style="cursor: pointer;">
         <div class="user-avatar" id="userAvatar">A</div>
         <div class="user-meta">
@@ -285,7 +301,6 @@
       <div id="loadMoreWrap" style="text-align: center; margin-top: 24px;" hidden>
         <button class="ghost" id="loadMoreBtn" onclick="showMoreBooks()">Show more</button>
       </div>
-      <p id="noResults" class="no-results" hidden>No books found.</p>
     </section>
 
     <!-- 2. MY REQUESTS VIEW (Student Only) -->
@@ -298,7 +313,6 @@
           </thead>
           <tbody id="myRequestsBody"></tbody>
         </table>
-        <p id="noMyRequests" class="no-results" style="padding: 32px; margin: 0;">You have no pending requests.</p>
       </div>
     </section>
 
@@ -312,7 +326,6 @@
           </thead>
           <tbody id="requestsBody"></tbody>
         </table>
-        <p id="noRequests" class="no-results" style="padding: 32px; margin: 0;">No pending requests.</p>
       </div>
     </section>
 
@@ -326,7 +339,6 @@
           </thead>
           <tbody id="loansBody"></tbody>
         </table>
-        <p id="noLoans" class="no-results" style="padding: 32px; margin: 0;">No active loans.</p>
       </div>
     </section>
 
@@ -344,7 +356,6 @@
           <thead id="historyHead"></thead>
           <tbody id="historyBody"></tbody>
         </table>
-        <p id="noHistory" class="no-results" style="padding: 32px; margin: 0;">No history found.</p>
       </div>
     </section>
 
@@ -369,6 +380,7 @@
             <option value="date-new">Newest Published</option>
             <option value="date-old">Oldest Published</option>
           </select>
+          <button class="ghost small" onclick="exportBooksCsv()">⬇ Export CSV</button>
           <button class="ghost small" id="btnViewArchivedBooks" onclick="toggleViewArchivedBooks()">Show Archived</button>
           <button class="small" onclick="openBookForm()">+ Add New Book</button>
         </div>
@@ -389,6 +401,7 @@
         <h2>Account Management</h2>
         <div class="admin-actions">
           <input type="search" id="adminUserSearch" class="admin-search" placeholder="🔍 Search accounts…" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);">
+          <button class="ghost small" onclick="exportUsersCsv()">⬇ Export CSV</button>
           <button class="ghost small" id="btnViewArchivedUsers" onclick="toggleViewArchivedUsers()">Show Archived</button>
           <button class="small" onclick="openUserForm()">+ Add Account</button>
         </div>
@@ -429,7 +442,6 @@
           </thead>
           <tbody id="ticketsBody"></tbody>
         </table>
-        <p id="noTickets" class="no-results" style="padding: 32px; margin: 0;">No tickets found.</p>
       </div>
     </section>
   </main>
@@ -854,7 +866,6 @@
   </div>
 </div>
 
-<!-- GLOBAL CUSTOM CONFIRM MODAL -->
 <div id="globalConfirmModal" class="modal" hidden>
   <div class="modal-box" style="max-width: 400px; text-align: center;">
     <div class="modal-head" style="justify-content: center; margin-bottom: 12px;">
@@ -868,6 +879,6 @@
   </div>
 </div>
 
-<script src="script.js?v=109"></script>
+<script src="script.js?v=112"></script>
 </body>
 </html>
