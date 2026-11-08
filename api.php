@@ -28,6 +28,7 @@ if ($action === 'load') {
             if (isset($row['replies'])) $row['replies'] = json_decode($row['replies'], true) ?: [];
             if (isset($row['isWaitlist'])) $row['isWaitlist'] = (bool)$row['isWaitlist'];
             if (isset($row['is_archived'])) $row['is_archived'] = (bool)$row['is_archived'];
+            if (isset($row['fine_paid'])) $row['fine_paid'] = (bool)$row['fine_paid'];
         }
         $data[$table] = $results;
     }
@@ -75,15 +76,12 @@ if ($action === 'sync') {
         }
 
         insertData($pdo, 'users', $input['users'], ['id','name','username','password','role','student_num','section','is_archived'], ['id','name','username','password','role','studentNum','section','is_archived']);
-        
         insertData($pdo, 'books', $input['books'], ['id','title','cat','copies','author','published','icon','summary','cover_url','reference_url','is_archived']);
-        
         insertData($pdo, 'requests', $input['requests'], ['id','bookId','studentId','studentName','reqStudentId','reqSection','reqContact','notes','isWaitlist','dateRequested']);
         insertData($pdo, 'loans', $input['loans'], ['id','bookId','borrowerId','borrower','due','notes','extensions']);
-        insertData($pdo, 'history', $input['history'], ['id','bookId','borrowerId','borrower','due','returnedAt','notes','extensions','is_archived']);
+        insertData($pdo, 'history', $input['history'], ['id','bookId','borrowerId','borrower','due','returnedAt','notes','extensions','is_archived','fine_paid']);
         insertData($pdo, 'rejections', $input['rejections'], ['id','bookId','studentId','studentName','reqStudentId','reqSection','dateRequested','reason','dateProcessed','is_archived']);
         insertData($pdo, 'extension_requests', $input['extensionRequests'], ['id','loanId','bookName','studentName','reason']);
-        
         insertData($pdo, 'tickets', $input['tickets'], ['id','userId','userName','subject','`desc`','date','time','status','replies']);
 
         $pdo->commit();
