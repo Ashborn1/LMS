@@ -98,7 +98,7 @@ const seedBooks = [
   },
   { 
     id: 15, title: "Advanced Grammar in Use, 4th Edition", cat: "English", copies: 7, author: "Martin Hewings", published: "2023", 
-    cover_url: "https://assets.cambridge.org/97811089/20216/large_cover/9781108920216i.jpg", 
+    cover_url: "https://imgv2-2-f.scribdassets.com/img/document/878573171/original/aef77cc7ff/1?v=1", 
     reference_url: "https://www.cambridge.org/us/cambridgeenglish/catalog/grammar-vocabulary-and-pronunciation/advanced-grammar-use-4th-edition", icon: "📚", 
     summary: "A reference and practice book for advanced English learners, covering grammar in 105 units, including academic grammar, with answers and online tests." 
   },
@@ -158,6 +158,47 @@ let viewArchivedHistory = false;
 
 const $ = id => document.getElementById(id);
 
+// ---- SETTINGS & SMALL HELPERS ----
+const MAX_LOANS = 5;        // max books a student can have borrowed + requested at once
+const FINE_PER_DAY = 5;     // late fine (pesos) per overdue day
+const CATALOG_PAGE = 12;    // books shown before "Show more"
+
+// Escape text before putting it inside innerHTML so titles/notes can't break the page
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const today = () => new Date().toLocaleDateString("en-CA");          // local date as YYYY-MM-DD
+const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString("en-CA"); };   // local date n days from now
+const dayDiff = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000);   // a - b in days
+const fineFor = (due, returnedAt = today()) => (Math.max(0, dayDiff(returnedAt, due)) * FINE_PER_DAY) || 0;
+const money = n => "₱" + n.toLocaleString();
+const titleOf = (id, fallback = "Unknown") => (books.find(b => b.id === id) || {}).title || fallback;
+
+function dueBadge(due) {
+  const d = dayDiff(due, today());
+  if (d < 0) return `<span class="badge badge-red">Overdue ${-d} day${d === -1 ? "" : "s"} · ${money(fineFor(due))}</span>`;
+  if (d === 0) return `<span class="badge badge-amber">Due today</span>`;
+  if (d <= 3) return `<span class="badge badge-amber">Due in ${d} day${d === 1 ? "" : "s"}</span>`;
+  return "";
+}
+
+// When copies free up, move the oldest waitlisted requests into the normal queue (first come, first served)
+function promoteWaitlist(bookId) {
+  const book = books.find(b => b.id === bookId);
+  if (!book) return;
+  const free = book.copies - borrowedCount(bookId) - requests.filter(r => r.bookId === bookId && !r.isWaitlist).length;
+  requests
+    .filter(r => r.bookId === bookId && r.isWaitlist)
+    .sort((a, b) => a.id - b.id)
+    .slice(0, Math.max(0, free))
+    .forEach(r => { r.isWaitlist = false; });
+}
+
+function refreshUserChip() {
+  const u = currentUser;
+  $("whoName").textContent = u.name;
+  $("whoRole").textContent = u.role;
+  $("userAvatar").textContent = (u.name.trim()[0] || "?").toUpperCase();
+}
+
 // ---- THEME DROPDOWN LOGIC ----
 const savedTheme = localStorage.getItem("themeName") || "midnight-ocean";
 document.documentElement.setAttribute("data-theme", savedTheme);
@@ -200,10 +241,6 @@ function setTheme(theme) {
 setTheme(savedTheme);
 
 async function save() {
-  if (currentUser) {
-    localStorage.setItem("session", JSON.stringify(currentUser));
-  }
-
   const payload = {
     users: users,
     books: books,
@@ -278,7 +315,7 @@ $("loginForm").onsubmit = (e) => {
   
   if (found) {
     currentUser = found;
-    localStorage.setItem("session", JSON.stringify(found));
+    localStorage.setItem("session", JSON.stringify(found.id));
     showApp();
   } else {
     $("loginErr").textContent = "Invalid username or password.";
@@ -319,7 +356,7 @@ function submitAuthTicket() {
     userName: name + " (Guest)",
     subject: "Account Recovery: " + user,
     desc: desc,
-    date: new Date().toISOString().slice(0, 10), 
+    date: today(), 
     time: new Date().toLocaleString(), 
     status: "Open",
     replies: []
@@ -361,8 +398,8 @@ function renderGuestTickets() {
       repliesHtml = `<div class="guest-ticket-replies">
         ${t.replies.map(r => `
           <div class="reply-bubble ${r.sender === 'Admin' || r.sender === 'Bookkeeper' ? 'admin' : 'student'}">
-            <strong>${r.sender}:</strong> ${r.text}
-            <div class="reply-meta">${r.date}</div>
+            <strong>${esc(r.sender)}:</strong> ${esc(r.text)}
+            <div class="reply-meta">${esc(r.date)}</div>
           </div>
         `).join("")}
       </div>`;
@@ -384,14 +421,14 @@ function renderGuestTickets() {
       <div class="guest-ticket-card">
         <div class="guest-ticket-header">
           <div>
-            <div class="guest-ticket-title">${t.subject}</div>
-            <div class="guest-ticket-date">Submitted on ${tTime}</div>
+            <div class="guest-ticket-title">${esc(t.subject)}</div>
+            <div class="guest-ticket-date">Submitted on ${esc(tTime)}</div>
           </div>
           <span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: ${t.status === 'Open' ? 'color-mix(in srgb, #f59e0b 15%, transparent)' : 'color-mix(in srgb, #10b981 15%, transparent)'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
             ${t.status}
           </span>
         </div>
-        <div class="guest-ticket-desc">"${t.desc}"</div>
+        <div class="guest-ticket-desc">"${esc(t.desc)}"</div>
         ${repliesHtml}
         ${replyInput}
       </div>
@@ -423,8 +460,7 @@ function submitGuestReply(ticketId) {
 function showApp() {
   $("auth").hidden = true;
   $("app").hidden = false;
-  $("whoName").textContent = currentUser.name;
-  $("whoRole").textContent = currentUser.role;
+  refreshUserChip();
   
   const isStudent = currentUser.role === "Student";
   const isBookkeeper = currentUser.role === "Bookkeeper";
@@ -434,8 +470,8 @@ function showApp() {
   $("navMyRequests").hidden = !isStudent; 
   $("navRequests").hidden = !isBookkeeper;
   $("navLoans").hidden = isAdmin;
-  $("navHistory").hidden = isAdmin;
   $("navBooks").hidden = !isBookkeeper;
+  $("navDashboard").hidden = !isBookkeeper;
   $("navUsers").hidden = !isAdmin;
   $("navTickets").hidden = isBookkeeper;
 
@@ -444,22 +480,24 @@ function showApp() {
   $("thQueue").style.display = isAdmin ? "table-cell" : "none";
 
   if (isAdmin) switchView("users");
-  else if (isBookkeeper) switchView("requests");
+  else if (isBookkeeper) switchView("dashboard");
   else switchView("catalog");
 }
 
+// "my-requests" -> "navMyRequests"
+const navId = v => "nav" + v.replace(/(^|-)(\w)/g, (_, __, c) => c.toUpperCase());
+
 function switchView(viewName) {
-  ['info', 'catalog', 'my-requests', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
+  ['info', 'dashboard', 'catalog', 'my-requests', 'requests', 'loans', 'history', 'books', 'users', 'tickets'].forEach(v => {
     $("view-" + v).hidden = true;
-    const navBtn = $("nav" + v.charAt(0).toUpperCase() + v.slice(1).replace('-', ''));
-    if (navBtn) navBtn.classList.remove("active");
+    $(navId(v)).classList.remove("active");
   });
-  
+
   $("view-" + viewName).hidden = false;
-  const activeBtn = $("nav" + viewName.charAt(0).toUpperCase() + viewName.slice(1).replace('-', ''));
-  if (activeBtn) activeBtn.classList.add("active");
+  $(navId(viewName)).classList.add("active");
 
   if (viewName === 'info') renderGuidelines();
+  if (viewName === 'dashboard') renderDashboard();
   if (viewName === 'catalog') renderCatalog();
   if (viewName === 'my-requests') renderMyRequests();
   if (viewName === 'requests') renderRequests();
@@ -468,6 +506,8 @@ function switchView(viewName) {
   if (viewName === 'books') renderManageBooks();
   if (viewName === 'users') renderManageUsers();
   if (viewName === 'tickets') renderTickets();
+
+  renderNotifications();
 }
 
 // ---- GUIDELINES RENDER ----
@@ -485,7 +525,8 @@ function renderGuidelines() {
       <li><strong>Title Limit:</strong> You can only borrow <strong>1 copy per book title</strong>.</li>
       <li><strong>Loan Period:</strong> Standard borrowing is <strong>14 days</strong>.</li>
       <li><strong>Extensions:</strong> Request extensions before the due date with a <strong>valid reason</strong>.</li>
-      <li><strong>Waitlist:</strong> If a book is out of stock, join the waitlist.</li>
+      <li><strong>Waitlist:</strong> If a book is out of stock, join the waitlist. Waitlisted requests move up first come, first served.</li>
+      <li><strong>Late Fine:</strong> ${money(FINE_PER_DAY)} for every day a book is returned after its due date.</li>
     `;
   } else if (role === "Bookkeeper") {
     generalRulesTitle.textContent = "📌 Bookkeeper Quick Rules";
@@ -494,6 +535,7 @@ function renderGuidelines() {
       <li><strong>Extensions:</strong> Strictly review the student's reason before approving extensions.</li>
       <li><strong>Approvals:</strong> Set due dates (14 days standard) when accepting borrow requests.</li>
       <li><strong>Returns:</strong> Process returned books promptly to update inventory.</li>
+      <li><strong>Late Fines:</strong> ${money(FINE_PER_DAY)} per overdue day. The fine is shown when you process a late return.</li>
     `;
   } else if (role === "Admin") {
     generalRulesTitle.textContent = "📌 Admin Quick Rules";
@@ -542,11 +584,51 @@ function toggleViewArchivedHistory() {
 }
 
 // ---- CATALOG & BOOK INFO ----
+let catalogLimit = CATALOG_PAGE;
+
+function resetCatalogLimit() {
+  catalogLimit = CATALOG_PAGE;
+  renderCatalog();
+}
+
+function showMoreBooks() {
+  catalogLimit += CATALOG_PAGE;
+  renderCatalog();
+}
+
+/* ---------- Book covers: online link first, then local pictures ----------
+   Put your pictures in a "covers" folder next to index.html, named after the
+   book title in lowercase with dashes, e.g.  covers/introduction-to-computer-science.jpg
+   (the book's id also works, e.g. covers/3.jpg). jpg, png, webp and jpeg are tried.
+   If nothing is found the emoji icon is shown. */
+const COVER_DIR = "covers/";
+const COVER_EXTS = ["jpg", "png", "webp", "jpeg"];
+function coverSlug(t) { return String(t).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+function coverCandidates(b) {
+  const out = [];
+  if (b.cover_url) out.push(b.cover_url);
+  [coverSlug(b.title), String(b.id)].forEach(n => COVER_EXTS.forEach(e => out.push(COVER_DIR + n + "." + e)));
+  return out;
+}
+function coverImgHtml(b, extraStyle = "") {
+  const list = coverCandidates(b);
+  return `<img src="${esc(list[0])}" data-bookid="${b.id}" data-i="0" alt="${esc(b.title)} cover" style="${extraStyle}" onerror="coverFallback(this)">`;
+}
+function coverFallback(img) {
+  const b = books.find(x => String(x.id) === img.dataset.bookid);
+  const list = b ? coverCandidates(b) : [];
+  const next = (parseInt(img.dataset.i, 10) || 0) + 1;
+  if (next < list.length) { img.dataset.i = next; img.src = list[next]; return; }
+  img.onerror = null;
+  img.parentElement.innerHTML = `<span style="font-size: 64px;">${b ? b.icon : "📘"}</span>`;
+}
+
 function renderCatalog() {
   const q = $("search").value.toLowerCase();
   const cat = $("catFilter").value;
   const yearFilter = $("yearFilter").value;
   const sortBy = $("sortCatalog").value;
+  const onlyAvailable = $("availOnly").checked;
 
   let filtered = books.filter(b => {
     const matchArchived = !b.is_archived;
@@ -554,7 +636,8 @@ function renderCatalog() {
                         (b.author && b.author.toLowerCase().includes(q)) || (b.summary && b.summary.toLowerCase().includes(q)) ||
                         (b.published && b.published.toString().toLowerCase().includes(q));
     const matchCat = cat === "all" || b.cat === cat;
-    
+    const matchAvail = !onlyAvailable || (b.copies - borrowedCount(b.id)) > 0;
+
     // Year Range Filter Logic
     let matchYear = true;
     if (yearFilter === "2020-2026") {
@@ -563,7 +646,7 @@ function renderCatalog() {
       matchYear = (b.published == yearFilter);
     }
 
-    return matchArchived && matchSearch && matchCat && matchYear;
+    return matchArchived && matchSearch && matchCat && matchYear && matchAvail;
   });
 
   filtered.sort((a, b) => {
@@ -578,25 +661,28 @@ function renderCatalog() {
 
   $("noResults").hidden = filtered.length > 0;
 
-  $("books").innerHTML = filtered.map(b => {
+  const visible = filtered.slice(0, catalogLimit);
+  const remaining = filtered.length - visible.length;
+  $("loadMoreWrap").hidden = remaining <= 0;
+  $("loadMoreBtn").textContent = `Show more (${remaining} remaining)`;
+
+  $("books").innerHTML = visible.map(b => {
     const avail = b.copies - borrowedCount(b.id);
     const theme = getThemeClass(b.cat);
-    
+
     // UNIFORM IMAGE CONTAINER
     const coverHtml = `
       <div class="book-cover-container">
-        ${b.cover_url 
-          ? `<img src="${b.cover_url}" alt="${b.title} cover" onerror="this.style.display='none'; this.parentElement.innerHTML = '<span style=\\'font-size: 64px;\\'>${b.icon}</span>';">` 
-          : `<span style="font-size: 64px;">${b.icon}</span>`}
+        ${coverImgHtml(b)}
       </div>
     `;
-    
+
     let actionBtns = "";
-    
+
     if (currentUser.role === 'Student') {
       const alreadyReq = requests.find(r => r.bookId === b.id && r.studentId === currentUser.id);
       const alreadyBorrowed = loans.find(l => l.bookId === b.id && l.borrowerId === currentUser.id);
-      
+
       if (alreadyReq) {
         actionBtns += `<button disabled style="background:color-mix(in srgb, #f59e0b 15%, transparent); color:#b45309; border:1px solid #fcd34d; opacity:1;" onclick="event.stopPropagation()">Requested</button>`;
       } else if (alreadyBorrowed) {
@@ -612,30 +698,27 @@ function renderCatalog() {
 
     return `<div class="book ${theme}" onclick="openBookInfo(${b.id})">
       ${coverHtml}
-      <span class="cat">${b.cat}</span>
-      <h3>${b.title}</h3>
+      <span class="cat">${esc(b.cat)}</span>
+      <h3>${esc(b.title)}</h3>
       <span class="avail">${avail} of ${b.copies} available</span>
       <div class="book-actions">${actionBtns}</div>
     </div>`;
   }).join("");
 }
 
-$("search").oninput = renderCatalog;
-$("catFilter").onchange = renderCatalog;
-$("yearFilter").onchange = renderCatalog;
-$("sortCatalog").onchange = renderCatalog;
+$("search").oninput = resetCatalogLimit;
+$("catFilter").onchange = resetCatalogLimit;
+$("yearFilter").onchange = resetCatalogLimit;
+$("sortCatalog").onchange = resetCatalogLimit;
+$("availOnly").onchange = resetCatalogLimit;
 
 function openBookInfo(id) {
   const b = books.find(x => x.id === id);
   if (!b) return;
   
-  if (b.cover_url) {
-    $("biCover").innerHTML = `<img src="${b.cover_url}" alt="Cover" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.innerHTML = '${b.icon}';">`;
-    $("biCover").className = "book-cover-large";
-  } else {
-    $("biCover").innerHTML = b.icon;
-    $("biCover").className = `book-cover-large ${getThemeClass(b.cat)}`;
-  }
+  $("biCover").innerHTML = coverImgHtml(b, "width: 100%; height: 100%; object-fit: cover;");
+  $("biCover").className = "book-cover-large";
+
   
   $("biTitle").textContent = b.title;
   $("biCategory").textContent = b.cat;
@@ -674,7 +757,7 @@ function openRequest(id, isWaitlist = false) {
   $("reqErr").textContent = "";
 
   if (isWaitlist) {
-    $("reqBookName").innerHTML = `${b.title} <br><span style="color:#b45309; font-size:12px; font-weight:600;">(Out of Stock - Joining Waitlist)</span>`;
+    $("reqBookName").innerHTML = `${esc(b.title)} <br><span style="color:#b45309; font-size:12px; font-weight:600;">(Out of Stock - Joining Waitlist)</span>`;
   } else {
     $("reqBookName").textContent = b.title;
   }
@@ -688,6 +771,20 @@ function submitRequest() {
     return;
   }
 
+  const alreadyHas = loans.some(l => l.bookId === requestingBookId && l.borrowerId === currentUser.id) ||
+                     requests.some(r => r.bookId === requestingBookId && r.studentId === currentUser.id);
+  if (alreadyHas) {
+    $("reqErr").textContent = "You already borrowed or requested a copy of this title (limit: 1 per title).";
+    return;
+  }
+
+  const inUse = loans.filter(l => l.borrowerId === currentUser.id).length +
+                requests.filter(r => r.studentId === currentUser.id).length;
+  if (inUse >= MAX_LOANS) {
+    $("reqErr").textContent = `Borrow limit reached: you can have at most ${MAX_LOANS} books borrowed or requested at a time.`;
+    return;
+  }
+
   requests.push({
     id: Date.now(),
     bookId: requestingBookId,
@@ -698,7 +795,7 @@ function submitRequest() {
     reqContact: $("reqContact").value.trim(),
     notes: $("reqNotes").value.trim(),
     isWaitlist: isWaitlistReq,
-    dateRequested: new Date().toISOString().slice(0, 10)
+    dateRequested: today()
   });
   
   save();
@@ -706,21 +803,25 @@ function submitRequest() {
   renderCatalog();
 }
 
+function waitlistPosition(r) {
+  return requests.filter(x => x.bookId === r.bookId && x.isWaitlist && x.id <= r.id).length;
+}
+
 function renderMyRequests() {
   const myReqs = requests.filter(r => r.studentId === currentUser.id);
-  
+
   $("noMyRequests").hidden = myReqs.length > 0;
-  
+
   $("myRequestsBody").innerHTML = myReqs.map(r => {
-    const book = books.find(b => b.id === r.bookId);
     const badge = r.isWaitlist ? `<span style="background:#f59e0b; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; margin-left:8px;">WAITLIST</span>` : "";
-    
+    const status = r.isWaitlist ? `Waitlisted · #${waitlistPosition(r)} in line` : "Pending Approval";
+
     return `<tr>
-      <td><strong>${book ? book.title : "Deleted Book"}</strong> ${badge}</td>
-      <td>${r.dateRequested}</td>
+      <td><strong>${esc(titleOf(r.bookId, "Deleted Book"))}</strong> ${badge}</td>
+      <td>${esc(r.dateRequested)}</td>
       <td>
         <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, #f59e0b 15%, transparent); color: #b45309;">
-          Pending Approval
+          ${status}
         </span>
       </td>
       <td>
@@ -734,23 +835,24 @@ function renderMyRequests() {
 
 function cancelRequest(reqId) {
   showConfirm("Cancel Request", "Are you sure you want to cancel this borrow request?", "Cancel Request", () => {
+    const req = requests.find(r => r.id === reqId);
     requests = requests.filter(r => r.id !== reqId);
+    if (req) promoteWaitlist(req.bookId);
     save();
     renderMyRequests();
-    renderCatalog(); 
+    renderCatalog();
   });
 }
 
 function renderRequests() {
-  $("noRequests").hidden = requests.length > 0;
+  $("noRequests").hidden = requests.length + extensionRequests.length > 0;
   $("requestsBody").innerHTML = requests.map(r => {
-    const book = books.find(b => b.id === r.bookId);
     const waitlistBadge = r.isWaitlist ? `<span style="display:inline-block; margin-left: 8px; background:#f59e0b; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; letter-spacing:0.5px;">WAITLIST</span>` : "";
-    
+
     return `<tr>
-      <td><strong>${book ? book.title : "Deleted Book"}</strong></td>
-      <td>${r.studentName} ${waitlistBadge}</td>
-      <td>${r.dateRequested}</td>
+      <td><strong>${esc(titleOf(r.bookId, "Deleted Book"))}</strong></td>
+      <td>${esc(r.studentName)} ${waitlistBadge}</td>
+      <td>${esc(r.dateRequested)}</td>
       <td>
         <div class="actions-cell">
           <button class="ghost small" onclick="openViewRequest(${r.id})">View</button>
@@ -758,7 +860,7 @@ function renderRequests() {
       </td>
     </tr>`;
   }).join("");
-  
+
   renderExtensionRequests();
 }
 
@@ -787,9 +889,7 @@ function promptApprove() {
   
   $("appBookName").textContent = `${b.title} for ${req.studentName}`;
   
-  const due = new Date();
-  due.setDate(due.getDate() + 14);
-  $("appDueDate").value = due.toISOString().slice(0, 10);
+  $("appDueDate").value = addDays(14);
   
   $("approveModal").hidden = false;
 }
@@ -797,10 +897,24 @@ function promptApprove() {
 function approveRequest() {
   const reqIndex = requests.findIndex(r => r.id === viewingRequestId);
   if (reqIndex === -1) return;
-  
+
   const req = requests[reqIndex];
   const dueDate = $("appDueDate").value;
-  
+  const book = books.find(b => b.id === req.bookId);
+
+  // Enforce the library rules before issuing the book
+  let problem = "";
+  if (!dueDate) problem = "Please set a due date.";
+  else if (!book || book.is_archived) problem = "This book is no longer in the catalog. Reject the request instead.";
+  else if (book.copies - borrowedCount(book.id) <= 0) problem = "No copies are available right now. Wait for a return before approving this request.";
+  else if (loans.some(l => l.bookId === req.bookId && l.borrowerId === req.studentId)) problem = `${req.studentName} already has a copy of this title (limit: 1 per title).`;
+  else if (loans.filter(l => l.borrowerId === req.studentId).length >= MAX_LOANS) problem = `${req.studentName} already has ${MAX_LOANS} active loans.`;
+
+  if (problem) {
+    showConfirm("Cannot Approve", problem, "Okay", () => {});
+    return;
+  }
+
   loans.push({
     id: Date.now(),
     bookId: req.bookId,
@@ -810,7 +924,7 @@ function approveRequest() {
     notes: req.notes,
     extensions: []
   });
-  
+
   requests.splice(reqIndex, 1);
   save();
   $("approveModal").hidden = true;
@@ -834,13 +948,13 @@ function submitReject() {
   const reqIndex = requests.findIndex(r => r.id === viewingRequestId);
   const req = requests[reqIndex];
   
-  req.status = "Rejected";
   req.reason = reason;
-  req.dateProcessed = new Date().toISOString().slice(0, 10);
+  req.dateProcessed = today();
   req.is_archived = false; 
   rejections.unshift(req);
-  
+
   requests.splice(reqIndex, 1);
+  promoteWaitlist(req.bookId);
   save();
   $("rejectModal").hidden = true;
   renderRequests();
@@ -849,16 +963,16 @@ function submitReject() {
 // ---- LOANS & EXTENSIONS ----
 function renderLoans() {
   const isStudent = currentUser.role === 'Student';
-  const visibleLoans = isStudent ? loans.filter(l => l.borrowerId === currentUser.id) : loans;
+  const visibleLoans = (isStudent ? loans.filter(l => l.borrowerId === currentUser.id) : [...loans])
+    .sort((a, b) => String(a.due).localeCompare(String(b.due)));   // soonest due first
 
   $("noLoans").hidden = visibleLoans.length > 0;
 
   $("loansBody").innerHTML = visibleLoans.map(l => {
-    const book = books.find(b => b.id === l.bookId);
     const hasPendingExt = extensionRequests.find(r => r.loanId === l.id);
-    
+
     let actions = `<button class="ghost small" onclick="viewLoanDetails(${l.id}, false)">View</button>`;
-    
+
     if (isStudent) {
       if (hasPendingExt) {
         actions += `<span style="font-size: 12px; color: #b45309; font-weight: 600; margin-left: 8px;">Ext. Pending</span>`;
@@ -871,9 +985,9 @@ function renderLoans() {
     }
 
     return `<tr>
-      <td><strong>${book ? book.title : "Unknown"}</strong></td>
-      <td>${l.borrower}</td>
-      <td>${l.due}</td>
+      <td><strong>${esc(titleOf(l.bookId))}</strong></td>
+      <td>${esc(l.borrower)}</td>
+      <td>${esc(l.due)} ${dueBadge(l.due)}</td>
       <td><div class="actions-cell">${actions}</div></td>
     </tr>`;
   }).join("");
@@ -881,15 +995,18 @@ function renderLoans() {
 
 function viewLoanDetails(id, isHistory) {
   const loan = isHistory ? history.find(l => l.id === id) : loans.find(l => l.id === id);
-  if(!loan) return;
-  const book = books.find(b => b.id === loan.bookId);
+  if (!loan) return;
 
-  $("ldBookName").textContent = book ? book.title : "Unknown";
+  $("ldBookName").textContent = titleOf(loan.bookId);
   $("ldName").textContent = loan.borrower;
   $("ldStatus").textContent = isHistory ? "Returned" : "Active";
   $("ldStatus").style.color = isHistory ? "#10b981" : "#f59e0b";
   $("ldDueDate").textContent = loan.due;
   $("ldNotes").textContent = loan.notes || "No notes provided.";
+
+  const fine = fineFor(loan.due, isHistory ? loan.returnedAt : today());
+  $("ldFine").textContent = fine ? money(fine) : "None";
+  $("ldFine").style.color = fine ? "#ef4444" : "";
 
   if (isHistory) {
     $("ldReturnRow").style.display = "flex";
@@ -904,8 +1021,8 @@ function viewLoanDetails(id, isHistory) {
     extArea.style.display = "block";
     extList.innerHTML = loan.extensions.map(e => `
       <div style="border-bottom: 1px dashed var(--border); padding-bottom: 8px; margin-bottom: 8px;">
-        <div style="font-weight: 600; color: var(--primary);">New Due: ${e.newDue}</div>
-        <div><strong>Reason:</strong> ${e.reason}</div>
+        <div style="font-weight: 600; color: var(--primary);">${esc(e.oldDue || "—")} → ${esc(e.newDue)}</div>
+        <div><strong>Reason:</strong> ${esc(e.reason)}</div>
       </div>
     `).join("");
     extList.lastElementChild.style.border = "none";
@@ -941,9 +1058,7 @@ function openExtendLoan(id) {
   const loan = loans.find(l => l.id === id);
   $("elBookName").textContent = books.find(b => b.id === loan.bookId).title;
   
-  const nextWeek = new Date();
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  $("elNewDate").value = nextWeek.toISOString().slice(0, 10);
+  $("elNewDate").value = addDays(7);
   $("elReason").value = "";
   $("elErr").textContent = "";
   
@@ -1005,13 +1120,13 @@ function submitExtensionRequest() {
 
 function renderExtensionRequests() {
   const extArea = $("requestsBody");
-  
+
   if (extensionRequests.length > 0) {
     extArea.innerHTML += extensionRequests.map(ext => `
       <tr style="background: color-mix(in srgb, #ef4444 5%, transparent);">
-        <td><strong>[EXTENSION] ${ext.bookName}</strong></td>
-        <td>${ext.studentName}</td>
-        <td>Reason: ${ext.reason}</td>
+        <td><strong>[EXTENSION] ${esc(ext.bookName)}</strong></td>
+        <td>${esc(ext.studentName)}</td>
+        <td>Reason: ${esc(ext.reason)}</td>
         <td>
           <div class="actions-cell">
             <button class="small" onclick="openExtApprove(${ext.id})">Approve Ext</button>
@@ -1032,9 +1147,7 @@ function openExtApprove(reqId) {
   $("extAppBookName").textContent = req.bookName;
   $("extAppReason").textContent = `"${req.reason}"`;
   
-  const due = new Date();
-  due.setDate(due.getDate() + 7);
-  $("extAppNewDate").value = due.toISOString().slice(0, 10);
+  $("extAppNewDate").value = addDays(7);
   
   $("extendAppModal").hidden = false;
 }
@@ -1045,8 +1158,19 @@ function approveExtension() {
   
   const req = extensionRequests[reqIdx];
   const loan = loans.find(l => l.id === req.loanId);
-  
+  if (!loan) {   // the book was already returned, so there is nothing to extend
+    extensionRequests.splice(reqIdx, 1);
+    save();
+    $("extendAppModal").hidden = true;
+    switchView("requests");
+    return;
+  }
+
   const newDue = $("extAppNewDate").value;
+  if (!newDue) {
+    showConfirm("Missing Date", "Please pick a new due date.", "Okay", () => {});
+    return;
+  }
   
   loan.extensions = loan.extensions || [];
   loan.extensions.push({ oldDue: loan.due, newDue: newDue, reason: req.reason });
@@ -1069,106 +1193,124 @@ function rejectExtension(id) {
 function returnBook(loanId) {
   const idx = loans.findIndex(l => l.id === loanId);
   if (idx === -1) return;
-  
+
   const loan = loans[idx];
-  loan.returnedAt = new Date().toISOString().slice(0, 10);
+  loan.returnedAt = today();
   loan.is_archived = false;
-  
+
   history.unshift(loan);
   loans.splice(idx, 1);
+  extensionRequests = extensionRequests.filter(r => r.loanId !== loanId);   // a returned loan can't be extended
+  promoteWaitlist(loan.bookId);
   save();
   renderLoans();
+
+  const fine = fineFor(loan.due, loan.returnedAt);
+  if (fine) {
+    const late = dayDiff(loan.returnedAt, loan.due);
+    showConfirm("Late Return", `${loan.borrower} returned this book ${late} day${late === 1 ? "" : "s"} late. Collect a fine of ${money(fine)}.`, "Okay", () => {});
+  }
 }
 
 // ---- HISTORY & ARCHIVING ----
+// One list used by both the History table and the CSV export
+function historyItems() {
+  const isStudent = currentUser.role === 'Student';
+  const archivedView = !isStudent && viewArchivedHistory;
+  const wanted = x => !!x.is_archived === archivedView;
+
+  const loanRows = history
+    .filter(h => wanted(h) && (!isStudent || h.borrowerId === currentUser.id))
+    .map(h => ({ kind: 'loan', id: h.id, bookId: h.bookId, person: h.borrower, date: h.returnedAt, due: h.due, fine: fineFor(h.due, h.returnedAt), note: h.notes || "" }));
+
+  const rejectionRows = rejections
+    .filter(r => wanted(r) && (!isStudent || r.studentId === currentUser.id))
+    .map(r => ({ kind: 'rejection', id: r.id, bookId: r.bookId, person: r.studentName, date: r.dateProcessed, due: "", fine: 0, note: r.reason || "" }));
+
+  return [...loanRows, ...rejectionRows]
+    .map(x => ({ ...x, title: titleOf(x.bookId) }))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+const historyStatus = i => i.kind === 'loan'
+  ? `<span style="color: #10b981; font-weight: 600;">Returned</span>`
+  : `<span style="color: #ef4444; font-weight: 600;">Rejected</span>`;
+
+const historyFine = i => i.fine ? `<span style="color: #ef4444; font-weight: 600;">${money(i.fine)}</span>` : "—";
+
+const historyNote = i => i.kind === 'loan'
+  ? `<span style="font-style: italic; color: var(--muted);">${esc(i.note) || "—"}</span>`
+  : `<span style="color: #ef4444;"><strong>Reason:</strong> ${esc(i.note)}</span>`;
+
 function renderHistory() {
   const isStudent = currentUser.role === 'Student';
-  
+  const items = historyItems();
+
+  $("btnViewArchivedHistory").hidden = isStudent;   // students never see archived records
+  $("noHistory").hidden = items.length > 0;
+
   if (isStudent) {
-    const myHistory = history.filter(h => h.borrowerId === currentUser.id && !h.is_archived).map(h => ({...h, type: 'loan'}));
-    const myRejections = rejections.filter(r => r.studentId === currentUser.id && !r.is_archived).map(r => ({...r, type: 'reject'}));
-    
-    let combined = [...myHistory, ...myRejections].sort((a, b) => {
-      const dateA = a.type === 'loan' ? new Date(a.returnedAt) : new Date(a.dateProcessed);
-      const dateB = b.type === 'loan' ? new Date(b.returnedAt) : new Date(b.dateProcessed);
-      return dateB - dateA;
-    });
-
-    $("historyHead").innerHTML = `<tr><th>Book</th><th>Status</th><th>Date</th><th>Notes / Reason</th></tr>`;
-    $("noHistory").hidden = combined.length > 0;
-
-    $("historyBody").innerHTML = combined.map(item => {
-      if (item.type === 'loan') {
-        const book = books.find(b => b.id === item.bookId);
-        return `<tr>
-          <td><strong>${book ? book.title : "Unknown"}</strong></td>
-          <td><span style="color: #10b981; font-weight: 600;">Returned</span></td>
-          <td>${item.returnedAt}</td>
-          <td style="font-style: italic; color: var(--muted);">${item.notes || "—"}</td>
-        </tr>`;
-      } else {
-        const book = books.find(b => b.id === item.bookId);
-        return `<tr>
-          <td><strong>${book ? book.title : "Unknown"}</strong></td>
-          <td><span style="color: #ef4444; font-weight: 600;">Rejected</span></td>
-          <td>${item.dateProcessed}</td>
-          <td style="color: #ef4444;"><strong>Reason:</strong> ${item.reason}</td>
-        </tr>`;
-      }
-    }).join("");
-    
-  } else {
-    const combinedHistory = [
-      ...history.filter(h => viewArchivedHistory ? h.is_archived : !h.is_archived).map(h => ({ ...h, itemType: 'loan' })),
-      ...rejections.filter(r => viewArchivedHistory ? r.is_archived : !r.is_archived).map(r => ({ ...r, itemType: 'rejection' }))
-    ].sort((a, b) => {
-      const dateA = a.itemType === 'loan' ? new Date(a.returnedAt) : new Date(a.dateProcessed);
-      const dateB = b.itemType === 'loan' ? new Date(b.returnedAt) : new Date(b.dateProcessed);
-      return dateB - dateA;
-    });
-
-    $("historyHead").innerHTML = `<tr><th>Book</th><th>Borrower</th><th>Status</th><th>Date</th><th style="text-align: right;">Actions</th></tr>`;
-    $("noHistory").hidden = combinedHistory.length > 0;
-
-    $("historyBody").innerHTML = combinedHistory.map(item => {
-      const book = books.find(b => b.id === item.bookId);
-      const bookTitle = book ? book.title : "Unknown";
-      
-      if (item.itemType === 'loan') {
-        return `<tr>
-          <td><strong>${bookTitle}</strong></td>
-          <td>${item.borrower}</td>
-          <td><span style="color: #10b981; font-weight: 600;">Returned</span></td>
-          <td>${item.returnedAt}</td>
-          <td>
-            <div class="actions-cell">
-              <button class="ghost small" onclick="viewLoanDetails(${item.id}, true)">View</button>
-              ${viewArchivedHistory 
-                ? `<button class="ghost small" onclick="unarchiveHistory(${item.id})">Unarchive</button>`
-                : `<button class="ghost danger small" onclick="archiveHistory(${item.id})">Archive</button>`
-              }
-            </div>
-          </td>
-        </tr>`;
-      } else {
-        return `<tr>
-          <td><strong>${bookTitle}</strong></td>
-          <td>${item.studentName}</td>
-          <td><span style="color: #ef4444; font-weight: 600;">Rejected</span></td>
-          <td>${item.dateProcessed}</td>
-          <td>
-            <div class="actions-cell">
-              <button class="ghost small" onclick="viewRejection(${item.id})">View</button>
-              ${viewArchivedHistory 
-                ? `<button class="ghost small" onclick="unarchiveRejection(${item.id})">Unarchive</button>`
-                : `<button class="ghost danger small" onclick="archiveRejection(${item.id})">Archive</button>`
-              }
-            </div>
-          </td>
-        </tr>`;
-      }
-    }).join("");
+    $("historyHead").innerHTML = `<tr><th>Book</th><th>Status</th><th>Date</th><th>Fine</th><th>Notes / Reason</th></tr>`;
+    $("historyBody").innerHTML = items.map(i => `<tr>
+      <td><strong>${esc(i.title)}</strong></td>
+      <td>${historyStatus(i)}</td>
+      <td>${esc(i.date)}</td>
+      <td>${historyFine(i)}</td>
+      <td>${historyNote(i)}</td>
+    </tr>`).join("");
+    return;
   }
+
+  $("historyHead").innerHTML = `<tr><th>Book</th><th>Borrower</th><th>Status</th><th>Date</th><th>Fine</th><th style="text-align: right;">Actions</th></tr>`;
+  $("historyBody").innerHTML = items.map(i => {
+    const view = i.kind === 'loan' ? `viewLoanDetails(${i.id}, true)` : `viewRejection(${i.id})`;
+    const archive = i.kind === 'loan' ? 'archiveHistory' : 'archiveRejection';
+    const unarchive = i.kind === 'loan' ? 'unarchiveHistory' : 'unarchiveRejection';
+
+    return `<tr>
+      <td><strong>${esc(i.title)}</strong></td>
+      <td>${esc(i.person)}</td>
+      <td>${historyStatus(i)}</td>
+      <td>${esc(i.date)}</td>
+      <td>${historyFine(i)}</td>
+      <td>
+        <div class="actions-cell">
+          <button class="ghost small" onclick="${view}">View</button>
+          ${viewArchivedHistory
+            ? `<button class="ghost small" onclick="${unarchive}(${i.id})">Unarchive</button>`
+            : `<button class="ghost danger small" onclick="${archive}(${i.id})">Archive</button>`
+          }
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+// Download what the History table is currently showing as a CSV file (opens in Excel)
+function exportHistoryCsv() {
+  const items = historyItems();
+  if (items.length === 0) {
+    showConfirm("Nothing to Export", "There are no history records to export.", "Okay", () => {});
+    return;
+  }
+
+  const cell = v => {
+    let s = String(v ?? "");
+    if (/^[=+\-@]/.test(s)) s = "'" + s;          // stop spreadsheet formulas from running
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const header = ["Book", "Borrower", "Status", "Date", "Due Date", "Late Fine (PHP)", "Notes / Reason"];
+  const rows = items.map(i => [i.title, i.person, i.kind === 'loan' ? "Returned" : "Rejected", i.date, i.due, i.fine, i.note]);
+  const csv = "﻿" + [header, ...rows].map(r => r.map(cell).join(",")).join("\r\n");
+
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `library-history-${today()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function archiveHistory(id) {
@@ -1226,8 +1368,8 @@ function renderManageBooks() {
 
   $("manageBooksBody").innerHTML = filtered.map(b => `
     <tr>
-      <td><strong>${b.title}</strong></td>
-      <td>${b.cat}</td>
+      <td><strong>${esc(b.title)}</strong></td>
+      <td>${esc(b.cat)}</td>
       <td>${b.copies}</td>
       <td>
         <div class="actions-cell">
@@ -1332,6 +1474,7 @@ function saveBook() {
     const b = books.find(x => x.id == id);
     b.title = title; b.cat = cat; b.copies = copies; b.author = author; b.published = published; 
     b.icon = icon; b.summary = summary; b.cover_url = coverUrl; b.reference_url = referenceUrl;
+    promoteWaitlist(b.id);   // more copies may let waitlisted students through
   } else {
     books.push({
       id: Date.now(), title, cat, copies, author, published, icon, summary, cover_url: coverUrl, reference_url: referenceUrl, is_archived: false
@@ -1374,9 +1517,9 @@ function renderManageUsers() {
 
   $("manageUsersBody").innerHTML = filtered.map(u => `
     <tr>
-      <td><strong>${u.name}</strong></td>
-      <td>${u.username}</td>
-      <td><span class="cat" style="background:color-mix(in srgb, var(--primary) 15%, transparent); color:var(--primary);">${u.role}</span></td>
+      <td><strong>${esc(u.name)}</strong></td>
+      <td>${esc(u.username)}</td>
+      <td><span class="cat" style="background:color-mix(in srgb, var(--primary) 15%, transparent); color:var(--primary);">${esc(u.role)}</span></td>
       <td>
         <div class="actions-cell">
           <button class="ghost small" onclick="openUserForm(${u.id})">Edit</button>
@@ -1514,9 +1657,9 @@ function renderTickets() {
 
     return `<tr>
       ${queueNumHtml}
-      <td style="font-size: 12px; color: var(--muted);">${tTime}</td>
-      <td><strong>${t.subject}</strong></td>
-      <td>${t.userName}</td>
+      <td style="font-size: 12px; color: var(--muted);">${esc(tTime)}</td>
+      <td><strong>${esc(t.subject)}</strong></td>
+      <td>${esc(t.userName)}</td>
       <td>
         <span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === 'Open' ? 'color-mix(in srgb, #f59e0b 15%, transparent)' : 'color-mix(in srgb, #10b981 15%, transparent)'}; color: ${t.status === 'Open' ? '#b45309' : '#047857'};">
           ${t.status}
@@ -1573,7 +1716,7 @@ function submitTicket() {
     userName: currentUser.name,
     subject: subject,
     desc: desc,
-    date: new Date().toISOString().slice(0, 10),
+    date: today(),
     time: new Date().toLocaleString(),
     status: "Open",
     replies: []
@@ -1608,8 +1751,8 @@ function viewTicket(id) {
       const isAdminReply = r.sender === 'Admin' || r.sender === 'Bookkeeper';
       return `
         <div class="reply-bubble ${isAdminReply ? 'admin' : 'student'}">
-          <strong>${r.sender}:</strong> ${r.text}
-          <div class="reply-meta">${r.date}</div>
+          <strong>${esc(r.sender)}:</strong> ${esc(r.text)}
+          <div class="reply-meta">${esc(r.date)}</div>
         </div>
       `;
     }).join("");
@@ -1646,6 +1789,153 @@ function submitReply() {
   renderTickets(); 
 }
 
+// ---- BOOKKEEPER: DASHBOARD ----
+function renderDashboard() {
+  const catalog = books.filter(b => !b.is_archived);
+  const overdue = loans.filter(l => dayDiff(l.due, today()) < 0);
+  const dueSoon = loans.filter(l => { const d = dayDiff(l.due, today()); return d >= 0 && d <= 3; })
+    .sort((a, b) => String(a.due).localeCompare(String(b.due)));
+  const fines = overdue.reduce((sum, l) => sum + fineFor(l.due), 0);
+  const waitlisted = requests.filter(r => r.isWaitlist).length;
+  const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+
+  $("dashDate").textContent = new Date().toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric" });
+
+  // Things that need action. A row only appears when there is something to do.
+  const rows = [];
+  if (overdue.length) {
+    rows.push({ tone: "red", n: overdue.length, text: overdue.length === 1 ? "overdue loan" : "overdue loans",
+                sub: `${money(fines)} in late fines so far`, go: "loans", cta: "View loans" });
+  }
+  const pending = requests.length + extensionRequests.length;
+  if (pending) {
+    const parts = [];
+    if (requests.length) parts.push(plural(requests.length, "borrow request"));
+    if (extensionRequests.length) parts.push(plural(extensionRequests.length, "extension request"));
+    rows.push({ tone: "teal", n: pending, text: pending === 1 ? "request waiting for a decision" : "requests waiting for a decision",
+                sub: parts.join(", ") + (waitlisted ? ` (${waitlisted} on the waitlist)` : ""), go: "requests", cta: "Review" });
+  }
+  if (dueSoon.length) {
+    rows.push({ tone: "amber", n: dueSoon.length, text: dueSoon.length === 1 ? "loan due in the next 3 days" : "loans due in the next 3 days",
+                sub: `Next up: ${titleOf(dueSoon[0].bookId)}`, go: "loans", cta: "View loans" });
+  }
+
+  $("dashAttn").innerHTML = rows.length
+    ? rows.map(r => `
+        <button class="attn-row ${r.tone}" onclick="switchView('${r.go}')">
+          <span class="attn-num">${r.n}</span>
+          <span class="attn-text"><strong>${r.text}</strong><small>${esc(r.sub)}</small></span>
+          <span class="attn-go">${r.cta}</span>
+        </button>`).join("")
+    : `<p class="dash-empty">You're all caught up. There are no overdue loans or pending requests.</p>`;
+
+  // Shelf: how many copies are in the building versus out with students
+  const totalCopies = catalog.reduce((s, b) => s + b.copies, 0);
+  const onLoan = catalog.reduce((s, b) => s + Math.min(b.copies, borrowedCount(b.id)), 0);
+  const onShelf = totalCopies - onLoan;
+  const loanPct = totalCopies ? Math.round(onLoan / totalCopies * 100) : 0;
+  const outOfStock = catalog.filter(b => b.copies - borrowedCount(b.id) <= 0).length;
+
+  $("dashShelf").innerHTML = `
+    <div class="shelf-bar" role="img" aria-label="${onShelf} copies on the shelf, ${onLoan} on loan">
+      <span class="shelf-loan" style="width: ${loanPct}%"></span>
+    </div>
+    <ul class="shelf-legend">
+      <li><i class="dot shelf"></i><span>Copies on the shelf</span><strong>${onShelf}</strong></li>
+      <li><i class="dot loan"></i><span>Copies on loan</span><strong>${onLoan}</strong></li>
+    </ul>
+    <ul class="dash-list shelf-facts">
+      <li><span>Titles in the catalog</span><strong>${catalog.length}</strong></li>
+      <li><span>Titles out of stock</span><strong class="${outOfStock ? "bad" : ""}">${outOfStock}</strong></li>
+    </ul>`;
+
+  const counts = {};
+  [...loans, ...history].forEach(l => { counts[l.bookId] = (counts[l.bookId] || 0) + 1; });
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  $("dashTop").innerHTML = top.length
+    ? `<ol class="dash-list">${top.map(([id, n]) => `<li><span>${esc(titleOf(Number(id)))}</span><strong>${n}×</strong></li>`).join("")}</ol>`
+    : `<p class="dash-empty">Nothing has been borrowed yet.</p>`;
+
+  const attention = [...overdue, ...dueSoon].sort((a, b) => String(a.due).localeCompare(String(b.due)));
+  $("dashDue").innerHTML = attention.length
+    ? `<ul class="dash-list">${attention.map(l => `<li><span><strong>${esc(titleOf(l.bookId))}</strong><br><small>${esc(l.borrower)}, due ${esc(l.due)}</small></span>${dueBadge(l.due)}</li>`).join("")}</ul>`
+    : `<p class="dash-empty">Nothing is overdue or due in the next 3 days.</p>`;
+}
+
+// ---- STUDENT: REQUEST RESULT BANNERS ----
+const seenKey = () => `seenNotifs_${currentUser.id}`;
+const getSeen = () => { try { return JSON.parse(localStorage.getItem(seenKey()) || "[]"); } catch (e) { return []; } };
+
+function renderNotifications() {
+  const box = $("notifBanner");
+  if (!currentUser || currentUser.role !== "Student") {
+    box.hidden = true;
+    return;
+  }
+
+  const seen = getSeen();
+  const weekAgo = Date.now() - 7 * 86400000;
+
+  // loan ids are timestamps from the moment of approval, so "recent" works without a new column
+  const items = [
+    ...loans
+      .filter(l => l.borrowerId === currentUser.id && l.id > weekAgo)
+      .map(l => ({ key: "L" + l.id, ok: true, text: `Approved: <strong>${esc(titleOf(l.bookId, "a book"))}</strong> — due ${esc(l.due)}` })),
+    ...rejections
+      .filter(r => r.studentId === currentUser.id && !r.is_archived && new Date(r.dateProcessed) > weekAgo)
+      .map(r => ({ key: "R" + r.id, ok: false, text: `Rejected: <strong>${esc(titleOf(r.bookId, "a book"))}</strong> — ${esc(r.reason)}` }))
+  ].filter(n => !seen.includes(n.key));
+
+  box.hidden = items.length === 0;
+  box.innerHTML = items.map(n => `<div class="notif ${n.ok ? "ok" : "bad"}">${n.ok ? "✅" : "❌"} ${n.text}</div>`).join("") +
+    `<button class="ghost small" onclick="dismissNotifications()">Dismiss</button>`;
+}
+
+function dismissNotifications() {
+  const keys = [
+    ...loans.filter(l => l.borrowerId === currentUser.id).map(l => "L" + l.id),
+    ...rejections.filter(r => r.studentId === currentUser.id).map(r => "R" + r.id)
+  ];
+  localStorage.setItem(seenKey(), JSON.stringify([...new Set([...getSeen(), ...keys])]));
+  renderNotifications();
+}
+
+// ---- PROFILE (everyone can edit their own name and password) ----
+function openProfile() {
+  $("pfName").value = currentUser.name;
+  $("pfUsername").value = currentUser.username;
+  $("pfInfo").textContent = currentUser.role === "Student"
+    ? `${currentUser.studentNum || "No student ID"} · ${currentUser.section || "No section"}`
+    : currentUser.role;
+  $("pfCurrent").value = "";
+  $("pfNew").value = "";
+  $("pfConfirm").value = "";
+  $("pfErr").textContent = "";
+  $("profileModal").hidden = false;
+}
+
+function saveProfile() {
+  const name = $("pfName").value.trim();
+  const current = $("pfCurrent").value;
+  const next = $("pfNew").value;
+  const confirm = $("pfConfirm").value;
+
+  if (!name) { $("pfErr").textContent = "Name can't be empty."; return; }
+
+  if (next || confirm || current) {
+    if (current !== currentUser.password) { $("pfErr").textContent = "Current password is incorrect."; return; }
+    if (next.length < 4) { $("pfErr").textContent = "New password must be at least 4 characters."; return; }
+    if (next !== confirm) { $("pfErr").textContent = "New passwords don't match."; return; }
+    currentUser.password = next;
+  }
+
+  currentUser.name = name;   // currentUser is the same object stored in users[]
+  save();
+  refreshUserChip();
+  $("profileModal").hidden = true;
+}
+
 // ---- INIT ----
 async function initApp() {
   try {
@@ -1674,6 +1964,8 @@ async function initApp() {
     rejections = data.rejections || [];
     extensionRequests = data.extension_requests || [];
     tickets = data.tickets || [];
+    // drop extension requests whose loan was already returned
+    extensionRequests = extensionRequests.filter(r => loans.some(l => l.id === r.loanId));
 
     if (needsSave) {
       await save(); 
@@ -1681,8 +1973,15 @@ async function initApp() {
 
     const savedSession = localStorage.getItem("session");
     if (savedSession) {
-      currentUser = JSON.parse(savedSession);
-      showApp();
+      const saved = JSON.parse(savedSession);
+      const id = (saved && typeof saved === "object") ? saved.id : saved;   // older sessions stored the whole user
+      const user = users.find(u => u.id === id && !u.is_archived);
+      if (user) {
+        currentUser = user;
+        showApp();
+      } else {
+        localStorage.removeItem("session");
+      }
     }
   } catch (error) {
     console.error("Failed to load initial data from database:", error);
