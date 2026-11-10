@@ -579,7 +579,7 @@ function refreshUserChip() {
 $("loginForm").onsubmit = (e) => {
   e.preventDefault();
   $("loginErr").textContent = "";
-  const u = $("user").value.trim();
+  const u = $("user").value;
   const p = $("pass").value;
   const found = users.find(
     (x) => x.username === u && x.password === p && !x.is_archived,
