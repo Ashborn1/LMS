@@ -48,29 +48,6 @@ It was built as a "no shortcuts" exercise — the UI is hand-written DOM code, t
 
 A second pass focused on the things staff and students actually do every day.
 
-### 📅 Recent Changes
-
-#### Yesterday
-
-- Upgraded the database to the normalized schema with related tables for users, books, requests, loans, history, rejections, extensions, tickets, replies, and admin logs.
-- Fixed the Archived views so archived users, books, history records, and rejected requests can be displayed and restored.
-- Added the `admin_logs` table and migration script for existing databases.
-- Added Admin Activity Logs for account creation, account updates, archive/unarchive actions, ticket status changes, and admin replies.
-- Fixed blank optional student numbers and sections being saved as SQL `NULL` instead of empty strings, preventing duplicate-key errors.
-- Added username and password validation that rejects spaces during login, account creation, account editing, and profile updates.
-- Added Enter-key confirmation for safe dialogs while keeping high-risk actions such as archive, reject, and cancel confirmation-only.
-- Added notification redirect buttons for active loans and history records.
-- Created additive presentation data using only the existing seeded books, including demo students, exhausted stock, waitlists, active loans, returned books, rejected requests, extensions, tickets, replies, and sample admin logs.
-- Documented the XAMPP, Apache, MySQL, and Workbench setup, including the requirement to run only one database server on port 3306.
-- Added project documentation and a defense walkthrough covering setup, workflows, roles, database normalization, and demonstrations.
-
-#### Today
-
-- Added detailed field-level descriptions to Admin Activity Logs.
-- Added clickable rows and keyboard activation to the View, Edit, and review grids.
-- Simplified closed-ticket messaging to **“This chat is closed.”**
-- Removed the redundant X button from the Admin Log details modal.
-
 | Feature | Where it lives | What it does |
 | :--- | :--- | :--- |
 | 📊 **Operational dashboard** | Bookkeeper landing page | Overdue counts, pending decisions, shelf occupancy, most-borrowed titles, and an overdue/due-soon list |
