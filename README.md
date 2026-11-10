@@ -320,7 +320,7 @@ If the page loads but the catalog is empty, open DevTools → **Network** and ch
 
 ## 💾 Database Schema
 
-The normalized schema in `database.sql` uses InnoDB foreign keys, required fields, unique constraints, indexes, and separate child tables for loan extensions and ticket replies. The API keeps the browser's existing JSON shape while resolving names through joins.
+The normalized schema in `sql/database.sql` uses InnoDB foreign keys, required fields, unique constraints, indexes, and separate child tables for loan extensions, ticket replies, and administrator activity logs. If the existing database is already running, execute `sql/admin_logs_upgrade.sql` once in Workbench before using the Admin Logs view. The API keeps the browser's existing JSON shape while resolving names through joins.
 
 <details open>
 <summary><b>📋 Create script — run this once in MySQL Workbench</b></summary>
@@ -567,8 +567,10 @@ Parameterized DBMS demonstration queries are available for `catalog_search`, `ca
 
 ```text
 LMS/
-├── database.sql    · normalized InnoDB schema, foreign keys, checks, and indexes
-├── presentation_data.sql · optional demo records for archived and active states
+├── sql/
+│   ├── database.sql    · normalized InnoDB schema, foreign keys, checks, and indexes
+│   ├── presentation_data.sql · optional demo records
+│   └── admin_logs_upgrade.sql · adds admin activity logs to an existing database
 ├── index.html    ~870 lines  · login, 10 views, dashboard, all modals
 ├── styles.css    ~375 lines  · 5 theme variable sets, grids, dashboard UI
 ├── script.js   ~2,000 lines  · state, rules, fines, every workflow

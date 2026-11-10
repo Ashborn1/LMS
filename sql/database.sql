@@ -127,9 +127,21 @@ CREATE TABLE ticket_replies (
     CONSTRAINT fk_ticket_replies_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE admin_logs (
+    id BIGINT UNSIGNED PRIMARY KEY,
+    admin_id BIGINT UNSIGNED NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id BIGINT UNSIGNED NULL,
+    details TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_admin_logs_admin FOREIGN KEY (admin_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+
 CREATE INDEX idx_books_category ON books(cat);
 CREATE INDEX idx_requests_student ON requests(student_id);
 CREATE INDEX idx_loans_due ON loans(due);
 CREATE INDEX idx_history_borrower ON history(borrower_id);
 CREATE INDEX idx_history_extensions_history ON history_extensions(history_id);
 CREATE INDEX idx_tickets_status ON tickets(status);
+CREATE INDEX idx_admin_logs_created_at ON admin_logs(created_at);

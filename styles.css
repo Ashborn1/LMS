@@ -676,6 +676,21 @@ main {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
 }
+.grid .book,
+[data-view-log] {
+  cursor: pointer;
+}
+[data-row-action] {
+  cursor: pointer;
+}
+[data-view-log]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+[data-row-action]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
 .book {
   background: var(--surface);
   border: 1px solid var(--border);

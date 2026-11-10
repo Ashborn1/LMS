@@ -13,6 +13,10 @@ function asBool($value) {
     return (bool)$value;
 }
 
+function nullableText($value) {
+    return $value === null || trim((string)$value) === '' ? null : $value;
+}
+
 function insertMappedRows($pdo, $table, $columns, $rows, $mapper) {
     if (empty($rows)) return;
     $placeholders = implode(',', array_fill(0, count($columns), '?'));
@@ -183,6 +187,19 @@ function loadData($pdo) {
         ];
     }
 
+    $data['adminLogs'] = $pdo->query(
+        'SELECT id, admin_id, action, entity_type, entity_id, details, created_at
+         FROM admin_logs ORDER BY created_at DESC, id DESC'
+    )->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($data['adminLogs'] as &$log) {
+        $log['id'] = (int)$log['id'];
+        $log['adminId'] = (int)$log['admin_id'];
+        $log['entityId'] = $log['entity_id'] === null ? null : (int)$log['entity_id'];
+        $log['createdAt'] = $log['created_at'];
+        unset($log['admin_id'], $log['entity_id'], $log['created_at']);
+    }
+    unset($log);
+
     return $data;
 }
 
@@ -207,8 +224,8 @@ function syncData($pdo, $input) {
         $userStmt = $pdo->prepare($userSql);
         foreach ($input['users'] as $row) {
             $userStmt->execute([(int)$row['id'], $row['name'] ?? '', $row['username'] ?? '',
-                $row['password'] ?? '', $row['role'] ?? '', $row['studentNum'] ?? null,
-                $row['section'] ?? null, !empty($row['is_archived']) ? 1 : 0]);
+                $row['password'] ?? '', $row['role'] ?? '', nullableText($row['studentNum'] ?? null),
+                nullableText($row['section'] ?? null), !empty($row['is_archived']) ? 1 : 0]);
         }
 
         $bookSql = 'INSERT INTO books (id,title,cat,copies,author,published,icon,summary,cover_url,reference_url,is_archived)
@@ -287,6 +304,18 @@ function syncData($pdo, $input) {
                 $replyStmt->execute([(int)$ticket['id'], $reply['sender'] ?? 'Guest',
                     $reply['text'] ?? '', $replyDate ? date('Y-m-d H:i:s', $replyDate) : date('Y-m-d H:i:s')]);
             }
+        }
+        $adminLogStmt = $pdo->prepare(
+            'INSERT IGNORE INTO admin_logs
+             (id,admin_id,action,entity_type,entity_id,details,created_at)
+             VALUES (?,?,?,?,?,?,?)'
+        );
+        foreach (($input['adminLogs'] ?? []) as $log) {
+            $adminLogStmt->execute([
+                (int)$log['id'], (int)$log['adminId'], $log['action'] ?? '',
+                $log['entityType'] ?? '', $log['entityId'] ?? null,
+                $log['details'] ?? '', $log['createdAt'] ?? date('Y-m-d H:i:s')
+            ]);
         }
         $pdo->commit();
     } catch (Throwable $e) {
