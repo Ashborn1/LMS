@@ -26,12 +26,7 @@
 
     <p id="loginErr" class="err"></p>
     
-    <div style="margin-top: 16px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5;">
-      <strong>Demo Accounts:</strong><br>
-      Admin: admin / admin123<br>
-      Bookkeeper: keeper / keeper123<br>
-      Student: student / student123
-    </div>
+    
 
     <div class="auth-links" style="display: flex; flex-direction: column; gap: 8px;">
       <a href="#" onclick="openAuthTicketModal(event)">Forgot username or password?</a>
@@ -872,6 +867,7 @@
       <h3 id="gcTitle" style="font-size: 20px;">Are you sure?</h3>
     </div>
     <p id="gcMessage" style="color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 24px;">This action cannot be undone.</p>
+    <p id="gcEnterHint" style="color: var(--muted); font-size: 12px; margin: -12px 0 16px;">Press Enter to confirm</p>
     <div class="modal-actions" style="justify-content: center; border-top: none; padding-top: 0; margin-top: 0;">
       <button class="ghost" onclick="$('globalConfirmModal').hidden = true">Cancel</button>
       <button class="danger" id="gcConfirmBtn">Delete</button>
@@ -879,6 +875,6 @@
   </div>
 </div>
 
-<script src="script.js?v=112"></script>
+<script src="script.js?v=114"></script>
 </body>
 </html>

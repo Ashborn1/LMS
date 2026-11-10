@@ -139,15 +139,24 @@ function getThemeClass(cat) {
 
 const borrowedCount = id => loans.filter(l => l.bookId === id).length;
 
-function showConfirm(title, message, confirmText, callback) {
+let confirmationAllowsEnter = true;
+function showConfirm(title, message, confirmText, callback, allowEnter = true) {
   $("gcTitle").textContent = title;
   $("gcMessage").textContent = message;
   $("gcConfirmBtn").textContent = confirmText;
   pendingConfirmAction = callback;
+  confirmationAllowsEnter = allowEnter;
+  $("gcEnterHint").hidden = !allowEnter;
   $("globalConfirmModal").hidden = false;
 }
-$("gcConfirmBtn").onclick = () => { if (pendingConfirmAction) pendingConfirmAction(); $("globalConfirmModal").hidden = true; pendingConfirmAction = null; };
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelectorAll(".modal").forEach(m => m.hidden = true); });
+$("gcConfirmBtn").onclick = () => { if (pendingConfirmAction) pendingConfirmAction(); $("globalConfirmModal").hidden = true; pendingConfirmAction = null; confirmationAllowsEnter = true; };
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.querySelectorAll(".modal").forEach(m => m.hidden = true);
+  if (e.key === "Enter" && !$("globalConfirmModal").hidden && confirmationAllowsEnter && pendingConfirmAction && e.target.tagName !== "TEXTAREA") {
+    e.preventDefault();
+    $("gcConfirmBtn").click();
+  }
+});
 
 // ---- WAITLIST AUTO-ASSIGN ----
 function promoteWaitlist(bookId) {
@@ -437,7 +446,7 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".global-search-wrapper")) {
     $("globalSearchResults").classList.remove("active");
   }
-});
+}, false);
 
 // ---- CATALOG ----
 let catalogLimit = CATALOG_PAGE;
@@ -532,7 +541,7 @@ function cancelRequest(reqId) {
     const req = requests.find(r => r.id === reqId); requests = requests.filter(r => r.id !== reqId);
     if (req) promoteWaitlist(req.bookId);
     save(); renderMyRequests(); renderCatalog();
-  });
+  }, false);
 }
 
 function renderRequests() {
@@ -640,7 +649,7 @@ function approveExtension() {
   extensionRequests.splice(reqIdx, 1); save(); $("extendAppModal").hidden = true; switchView("requests");
 }
 
-function rejectExtension(id) { showConfirm("Reject Extension", "Are you sure you want to reject this extension request?", "Reject", () => { extensionRequests = extensionRequests.filter(r => r.id !== id); save(); switchView("requests"); }); }
+function rejectExtension(id) { showConfirm("Reject Extension", "Are you sure you want to reject this extension request?", "Reject", () => { extensionRequests = extensionRequests.filter(r => r.id !== id); save(); switchView("requests"); }, false); }
 
 function returnBook(loanId) {
   const idx = loans.findIndex(l => l.id === loanId); if (idx === -1) return;
@@ -696,9 +705,9 @@ function exportHistoryCsv() {
   a.href = url; a.download = `library-history-${today()}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
-function archiveHistory(id) { showConfirm("Archive History", "Are you sure you want to archive this record?", "Archive", () => { const h = history.find(x => x.id === id); if (h) h.is_archived = true; save(); renderHistory(); }); }
+function archiveHistory(id) { showConfirm("Archive History", "Are you sure you want to archive this record?", "Archive", () => { const h = history.find(x => x.id === id); if (h) h.is_archived = true; save(); renderHistory(); }, false); }
 function unarchiveHistory(id) { const h = history.find(x => x.id === id); if (h) h.is_archived = false; save(); renderHistory(); }
-function archiveRejection(id) { showConfirm("Archive Record", "Are you sure you want to archive this rejected request?", "Archive", () => { const r = rejections.find(x => x.id === id); if (r) r.is_archived = true; save(); renderHistory(); }); }
+function archiveRejection(id) { showConfirm("Archive Record", "Are you sure you want to archive this rejected request?", "Archive", () => { const r = rejections.find(x => x.id === id); if (r) r.is_archived = true; save(); renderHistory(); }, false); }
 function unarchiveRejection(id) { const r = rejections.find(x => x.id === id); if (r) r.is_archived = false; save(); renderHistory(); }
 
 // ---- MANAGE BOOKS ----
@@ -754,7 +763,7 @@ function saveBook() {
   save(); $("bookFormModal").hidden = true; renderManageBooks();
 }
 
-function archiveBook(id) { showConfirm("Archive Book", "Are you sure you want to archive this book? It will be hidden from the catalog but kept in the database.", "Archive", () => { const b = books.find(x => x.id === id); if (b) b.is_archived = true; save(); renderManageBooks(); }); }
+function archiveBook(id) { showConfirm("Archive Book", "Are you sure you want to archive this book? It will be hidden from the catalog but kept in the database.", "Archive", () => { const b = books.find(x => x.id === id); if (b) b.is_archived = true; save(); renderManageBooks(); }, false); }
 function unarchiveBook(id) { const b = books.find(x => x.id === id); if (b) b.is_archived = false; save(); renderManageBooks(); }
 
 // ---- MANAGE USERS ----
@@ -801,7 +810,7 @@ function saveUser() {
   save(); $("userFormModal").hidden = true; renderManageUsers();
 }
 
-function archiveUser(id) { showConfirm("Archive Account", "Are you sure you want to archive this user account?", "Archive", () => { const u = users.find(x => x.id === id); if (u) u.is_archived = true; save(); renderManageUsers(); }); }
+function archiveUser(id) { showConfirm("Archive Account", "Are you sure you want to archive this user account?", "Archive", () => { const u = users.find(x => x.id === id); if (u) u.is_archived = true; save(); renderManageUsers(); }, false); }
 function unarchiveUser(id) { const u = users.find(x => x.id === id); if (u) u.is_archived = false; save(); renderManageUsers(); }
 
 // ---- SUPPORT TICKETS ----
@@ -876,9 +885,13 @@ const seenKey = () => `seenNotifs_${currentUser.id}`, getSeen = () => { try { re
 function renderNotifications() {
   const box = $("notifBanner"); if (!currentUser || currentUser.role !== "Student") { box.hidden = true; return; }
   const seen = getSeen(), weekAgo = Date.now() - 7 * 86400000;
-  const items = [ ...loans.filter(l => l.borrowerId === currentUser.id && l.id > weekAgo).map(l => ({ key: "L" + l.id, ok: true, text: `Approved: <strong>${esc(titleOf(l.bookId, "a book"))}</strong> — due ${esc(dateFmt(l.due))}` })), ...rejections.filter(r => r.studentId === currentUser.id && !r.is_archived && new Date(r.dateProcessed) > weekAgo).map(r => ({ key: "R" + r.id, ok: false, text: `Rejected: <strong>${esc(titleOf(r.bookId, "a book"))}</strong> — ${esc(r.reason)}` })) ].filter(n => !seen.includes(n.key));
+  const items = [ ...loans.filter(l => l.borrowerId === currentUser.id && l.id > weekAgo).map(l => ({ key: "L" + l.id, ok: true, target: "loans", action: "View loan", text: `Approved: <strong>${esc(titleOf(l.bookId, "a book"))}</strong> — due ${esc(dateFmt(l.due))}` })), ...rejections.filter(r => r.studentId === currentUser.id && !r.is_archived && new Date(r.dateProcessed) > weekAgo).map(r => ({ key: "R" + r.id, ok: false, target: "history", action: "View history", text: `Rejected: <strong>${esc(titleOf(r.bookId, "a book"))}</strong> — ${esc(r.reason)}` })) ].filter(n => !seen.includes(n.key));
   box.hidden = items.length === 0;
-  box.innerHTML = items.map(n => `<div class="notif ${n.ok ? "ok" : "bad"}">${n.ok ? "✅" : "❌"} ${n.text}</div>`).join("") + `<button class="ghost small" onclick="dismissNotifications()">Dismiss</button>`;
+  box.innerHTML = items.map(n => `<div class="notif ${n.ok ? "ok" : "bad"}"><span>${n.ok ? "✅" : "❌"} ${n.text}</span><button class="ghost small" onclick="openNotification('${n.key}', '${n.target}')">${n.action}</button></div>`).join("") + `<button class="ghost small" onclick="dismissNotifications()">Dismiss</button>`;
+}
+function openNotification(key, target) {
+  localStorage.setItem(seenKey(), JSON.stringify([...new Set([...getSeen(), key])]));
+  switchView(target);
 }
 function dismissNotifications() { const keys = [ ...loans.filter(l => l.borrowerId === currentUser.id).map(l => "L" + l.id), ...rejections.filter(r => r.studentId === currentUser.id).map(r => "R" + r.id) ]; localStorage.setItem(seenKey(), JSON.stringify([...new Set([...getSeen(), ...keys])])); renderNotifications(); }
 
