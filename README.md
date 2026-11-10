@@ -82,15 +82,15 @@ flowchart LR
     end
 
     subgraph Server["⚙️ Apache + PHP"]
-        API["api.php<br/>load / sync"]
-        DB["db.php<br/>PDO connection"]
+        API["php/api.php<br/>load / sync"]
+        DB["php/db.php<br/>PDO connection"]
         API --- DB
     end
 
     DB --> SQL[("🗄️ MySQL<br/>library_system<br/>11 tables")]
 
-    JS -- "GET api.php?action=load" --> API
-    JS -- "POST api.php?action=sync" --> API
+    JS -- "GET php/api.php?action=load" --> API
+    JS -- "POST php/api.php?action=sync" --> API
 ```
 
 | Layer | File | Responsibility |
@@ -99,8 +99,8 @@ flowchart LR
 | **Presentation** | `styles.css` | Layout, responsive grids, dashboard components, and 5 swappable theme variable sets |
 | **Application** | `script.js` | State, role gating, rules and limits, every workflow, `fetch()` calls |
 | **Assets** | `covers/` | 20 bundled cover images used when the online URL fails |
-| **API** | `api.php` | Compatibility load/sync endpoints plus parameterized SQL report queries |
-| **Data access** | `db.php` | PDO connection with exception-mode errors |
+| **API** | `php/api.php` | Compatibility load/sync endpoints plus parameterized SQL report queries |
+| **Data access** | `php/db.php` | PDO connection with exception-mode errors |
 
 ---
 
@@ -218,11 +218,11 @@ Users, books, history records, and rejections all carry an `is_archived` flag, a
 > - **XAMPP** ships Apache (the web server that runs PHP) *and* a copy of **MariaDB**, which it calls "MySQL" in its control panel.
 > - **MySQL Workbench** is only a *client* — a GUI for talking to a server. If you installed the standalone **MySQL Server** with it (the standard installer does this), that server runs as a **Windows service** in the background, usually on port **3306**.
 >
-> Both servers want port **3306**, so run **one or the other** — never both. This guide follows **Path B**, which is the setup `db.php` ships with; if you prefer Path A, just simplify the credentials in Step 4.
+> Both servers want port **3306**, so run **one or the other** — never both. This guide follows **Path B**, which is the setup `php/db.php` ships with; if you prefer Path A, just simplify the credentials in Step 4.
 
 **Pick a path:**
 
-| Path | Start in XAMPP | Database server | `db.php` credentials |
+| Path | Start in XAMPP | Database server | `php/db.php` credentials |
 | :--- | :--- | :--- | :--- |
 | **A · all-in-one** | Apache **+ MySQL** | XAMPP's bundled MariaDB | `root` / *(empty)* |
 | **B · standalone** *(this guide)* | **Apache only** | The MySQL Server installed with Workbench | `library_admin` / your password |
@@ -260,7 +260,7 @@ That's all the SQL you need — **the app seeds its own data.** On first load th
 
 ### Step 4 — Configure the connection
 
-Open `db.php` and match it to your setup:
+Open `php/db.php` and match it to your setup:
 
 ```php
 <?php
@@ -279,7 +279,7 @@ try {
 
 Two supported options:
 
-**Option 1 · Dedicated user (recommended).** Run this once in Workbench, then leave `db.php` as-is and set the password:
+**Option 1 · Dedicated user (recommended).** Run this once in Workbench, then leave `php/db.php` as-is and set the password:
 
 ```sql
 CREATE USER 'library_admin'@'localhost'
@@ -292,7 +292,7 @@ GRANT ALL PRIVILEGES
 FLUSH PRIVILEGES;
 ```
 
-**Option 2 · Use `root`.** Change the two credential lines in `db.php`:
+**Option 2 · Use `root`.** Change the two credential lines in `php/db.php`:
 
 ```php
 $user = 'root';
@@ -310,11 +310,11 @@ Open **<http://localhost/library/index.html>** and sign in with one of the [demo
 
 **Expected first-load sequence**
 
-1. `api.php?action=load` returns empty `users` / `books`.
+1. `php/api.php?action=load` returns empty `users` / `books`.
 2. The app swaps in its seed data and immediately calls `sync`.
 3. You land on the login screen; the roles now exist in MySQL.
 
-If the page loads but the catalog is empty, open DevTools → **Network** and check the `api.php` response — see [Troubleshooting](#-troubleshooting).
+If the page loads but the catalog is empty, open DevTools → **Network** and check the `php/api.php` response — see [Troubleshooting](#-troubleshooting).
 
 ---
 
@@ -517,7 +517,7 @@ One file exposes JSON load/sync compatibility actions plus parameterized report 
 
 For a live demonstration, run `presentation_data.sql` after the seeded users and books have been loaded. It is additive-only: it does not drop, delete, or insert books. It adds demo students, exhausts seeded books through active loans, creates waitlisted and pending requests, approved/extended/returned/rejected records, and admin/guest tickets with replies.
 
-### `GET api.php?action=load`
+### `GET php/api.php?action=load`
 
 Returns every row of every table in one payload, normalized for JavaScript:
 
@@ -541,7 +541,7 @@ Normalizations applied server-side:
 
 On load the client also drops extension requests whose loan no longer exists, so a stale record can't block anything.
 
-### `POST api.php?action=sync`
+### `POST php/api.php?action=sync`
 
 Accepts the **entire application state**:
 
@@ -557,7 +557,7 @@ Runs inside a single transaction and writes the normalized tables with prepared 
 > [!TIP]
 > The client appends a cache-buster (`&t=` + timestamp) and sends `no-store`, so stale GETs can't resurrect old data after a sync.
 
-### `GET api.php?action=query&type=...`
+### `GET php/api.php?action=query&type=...`
 
 Parameterized DBMS demonstration queries are available for `catalog_search`, `category_summary`, `active_loans`, and `overdue_summary`. They demonstrate `WHERE`, `LIKE`, `LIMIT`, aliases, aggregate functions, `GROUP BY`, `HAVING`, `ORDER BY`, `INNER JOIN`, and `COALESCE`.
 
@@ -572,8 +572,9 @@ LMS/
 ├── index.html    ~870 lines  · login, 10 views, dashboard, all modals
 ├── styles.css    ~375 lines  · 5 theme variable sets, grids, dashboard UI
 ├── script.js   ~2,000 lines  · state, rules, fines, every workflow
-├── api.php        ~100 lines  · load + sync endpoints (PDO, transactions)
-├── db.php          ~12 lines  · PDO connection (edit credentials here)
+├── php/
+│   ├── api.php    · load + sync endpoints (PDO, transactions)
+│   └── db.php     · PDO connection (edit credentials here)
 ├── covers/        20 images   · bundled book covers (optional)
 └── README.md
 ```
@@ -607,7 +608,7 @@ LMS/
 | `promoteWaitlist()` | Moves oldest waitlist requests up when copies free |
 | `seedUsers` / `seedBooks` | First-run data, used only when the DB is empty |
 | Theme block | Reads `localStorage.themeName`, applies `data-theme`, remembers choice |
-| `save()` | Serializes state → `POST api.php?action=sync`, surfaces PHP errors as alerts |
+| `save()` | Serializes state → `POST php/api.php?action=sync`, surfaces PHP errors as alerts |
 | `showApp()` / `switchView()` | Role gating, default view per role, rendering |
 | `renderCatalog()` … `renderTickets()` | One render function per view, rebuilding tables/cards from state |
 | `renderDashboard()` | The four dashboard panels |
@@ -625,7 +626,7 @@ LMS/
 
 Honest notes on the architecture — plus where it would need work before real use.
 
-**Full-state sync instead of REST resources.** Rather than building `POST /books`, `PUT /users`, and so on, every change ships the whole application state to `api.php`, which deletes every row and re-inserts the payload inside a transaction. This kept the backend to ~100 lines and made the frontend trivially consistent, since there is exactly one write path. The cost is real: writes are O(all rows), last write wins, and two simultaneous users can clobber each other. A production version would move to per-entity endpoints with `PATCH` semantics.
+**Full-state sync instead of REST resources.** Rather than building `POST /books`, `PUT /users`, and so on, every change ships the whole application state to `php/api.php`, which deletes every row and re-inserts the payload inside a transaction. This kept the backend compact and made the frontend trivially consistent, since there is exactly one write path. The cost is real: writes are O(all rows), last write wins, and two simultaneous users can clobber each other. A production version would move to per-entity endpoints with `PATCH` semantics.
 
 **Rules are checked twice, in the browser.** The 5-book and 1-copy limits are now genuinely blocked — in the request form *and* again at approval, alongside stock, archived-book, and missing-due-date checks. But both checks live in `script.js`, so they stop mistakes, not a determined user with DevTools. Server-side validation is the next step.
 
@@ -665,11 +666,11 @@ Each theme is a single block of CSS custom properties (`--bg`, `--surface`, `--t
 
 | Symptom | Likely cause | Fix |
 | :--- | :--- | :--- |
-| `Database connection failed: SQLSTATE[HY000] [1045]` | Wrong user/password | Update `db.php`; XAMPP root is blank, standalone MySQL root is not |
+| `Database connection failed: SQLSTATE[HY000] [1045]` | Wrong user/password | Update `php/db.php`; XAMPP root is blank, standalone MySQL root is not |
 | `… [2002] No connection could be made` | MySQL service isn't running | Start `MySQL80` in Services, or XAMPP's MySQL (not both) |
-| Page loads, catalog empty, console shows JSON parse error | `api.php` returned an HTML error | Open `api.php?action=load` directly — the HTML will name the real PHP error |
+| Page loads, catalog empty, console shows JSON parse error | `php/api.php` returned an HTML error | Open `php/api.php?action=load` directly — the HTML will name the real PHP error |
 | `Table 'library_system.users' doesn't exist` | Schema never ran | Re-run the Step 3 script in the correct database |
-| Alert: **"Failed to connect to api.php. Is XAMPP running?"** | Apache stopped, or wrong folder | Start Apache; confirm you're at `localhost/library/…`, not `file://` |
+| Alert: **"Failed to connect to php/api.php. Is XAMPP running?"** | Apache stopped, or wrong folder | Start Apache; confirm you're at `localhost/library/…`, not `file://` |
 | `netstat` shows two listeners on 3306 | XAMPP MySQL + standalone MySQL both running | Stop one of them |
 | Changes vanish after a refresh | `sync` failed silently | Check the Network tab for the `sync` response body |
 | Book covers show an emoji instead of a picture | No online URL and no matching file | Name the file after the title slug or the book id, both in `covers/` |
