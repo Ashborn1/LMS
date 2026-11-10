@@ -1,5 +1,5 @@
 <?php
-require 'db.php';
+require __DIR__ . '/db.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -9,16 +9,8 @@ function respond($data, $status = 200) {
     exit;
 }
 
-function asInt($value) {
-    return $value === null || $value === '' ? null : (int)$value;
-}
-
 function asBool($value) {
     return (bool)$value;
-}
-
-function encodeJson($value) {
-    return json_encode(is_array($value) ? $value : []);
 }
 
 function insertMappedRows($pdo, $table, $columns, $rows, $mapper) {

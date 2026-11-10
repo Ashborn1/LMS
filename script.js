@@ -116,7 +116,7 @@ setTheme(savedTheme);
 async function save() {
   const payload = { users, books, loans, history, requests, rejections, extensionRequests, tickets };
   try {
-    const response = await fetch('api.php?action=sync', {
+    const response = await fetch('php/api.php?action=sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -126,7 +126,7 @@ async function save() {
       const result = JSON.parse(text);
       if (result.error) alert("MySQL Save Error:\n" + result.error);
     } catch (e) { alert("PHP Error:\n" + text.substring(0, 300)); }
-  } catch (error) { alert("Failed to connect to api.php. Is XAMPP running?"); }
+  } catch (error) { alert("Failed to connect to php/api.php. Is XAMPP running?"); }
 }
 
 function getThemeClass(cat) {
@@ -904,7 +904,7 @@ async function initApp() {
   $("books").innerHTML = Array(8).fill(0).map(() => `<div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-text"></div><div class="skeleton-text short"></div></div>`).join("");
   
   try {
-    const response = await fetch('api.php?action=load&t=' + Date.now(), { cache: 'no-store' });
+    const response = await fetch('php/api.php?action=load&t=' + Date.now(), { cache: 'no-store' });
     const data = await response.json();
     
     let needsSave = false;
