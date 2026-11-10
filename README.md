@@ -13,7 +13,7 @@ No frameworks. No build step. No npm install. Just a browser, Apache, and a data
 ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)
 
-`3 roles` · `10 views` · `8 tables` · `5 themes` · `20 seeded books` · `₱5/day fines` · `0 dependencies`
+`3 roles` · `10 views` · `11 tables` · `5 themes` · `20 seeded books` · `₱5/day fines` · `0 dependencies`
 
 </div>
 
@@ -87,7 +87,7 @@ flowchart LR
         API --- DB
     end
 
-    DB --> SQL[("🗄️ MySQL<br/>library_system<br/>8 tables")]
+    DB --> SQL[("🗄️ MySQL<br/>library_system<br/>11 tables")]
 
     JS -- "GET api.php?action=load" --> API
     JS -- "POST api.php?action=sync" --> API
@@ -99,7 +99,7 @@ flowchart LR
 | **Presentation** | `styles.css` | Layout, responsive grids, dashboard components, and 5 swappable theme variable sets |
 | **Application** | `script.js` | State, role gating, rules and limits, every workflow, `fetch()` calls |
 | **Assets** | `covers/` | 20 bundled cover images used when the online URL fails |
-| **API** | `api.php` | Two actions: `load` (read everything) and `sync` (write everything) |
+| **API** | `api.php` | Compatibility load/sync endpoints plus parameterized SQL report queries |
 | **Data access** | `db.php` | PDO connection with exception-mode errors |
 
 ---
@@ -320,7 +320,7 @@ If the page loads but the catalog is empty, open DevTools → **Network** and ch
 
 ## 💾 Database Schema
 
-Eight tables, no foreign keys, no stored procedures. Relationships are by convention (`bookId`, `studentId`, `borrowerId`), and IDs are assigned in JavaScript. The dashboard, fines, notifications and CSV export all work off these same tables — nothing was added.
+The normalized schema in `database.sql` uses InnoDB foreign keys, required fields, unique constraints, indexes, and separate child tables for loan extensions and ticket replies. The API keeps the browser's existing JSON shape while resolving names through joins.
 
 <details open>
 <summary><b>📋 Create script — run this once in MySQL Workbench</b></summary>
@@ -513,7 +513,9 @@ The 14-day loan period and 7-day extension default are set in `addDays(14)` / `a
 
 ## 🔌 API Reference
 
-One file, two actions, both JSON. The new features didn't change the contract.
+One file exposes JSON load/sync compatibility actions plus parameterized report queries. The normalized MySQL schema is in `database.sql`.
+
+For a live demonstration, run `presentation_data.sql` after the seeded users and books have been loaded. It is additive-only: it does not drop, delete, or insert books. It adds demo students, exhausts seeded books through active loans, creates waitlisted and pending requests, approved/extended/returned/rejected records, and admin/guest tickets with replies.
 
 ### `GET api.php?action=load`
 
@@ -550,10 +552,14 @@ Accepts the **entire application state**:
 }
 ```
 
-Runs inside a single transaction: `DELETE` all rows, then re-`INSERT` the payload. Responds with `{"success": true}` or `{"error": "…"}` and rolls back on failure.
+Runs inside a single transaction and writes the normalized tables with prepared `INSERT`, `UPDATE`-on-duplicate, and `DELETE` statements. Names are resolved through SQL joins, while extensions and ticket replies are stored in their own related tables.
 
 > [!TIP]
 > The client appends a cache-buster (`&t=` + timestamp) and sends `no-store`, so stale GETs can't resurrect old data after a sync.
+
+### `GET api.php?action=query&type=...`
+
+Parameterized DBMS demonstration queries are available for `catalog_search`, `category_summary`, `active_loans`, and `overdue_summary`. They demonstrate `WHERE`, `LIKE`, `LIMIT`, aliases, aggregate functions, `GROUP BY`, `HAVING`, `ORDER BY`, `INNER JOIN`, and `COALESCE`.
 
 ---
 
@@ -561,6 +567,8 @@ Runs inside a single transaction: `DELETE` all rows, then re-`INSERT` the payloa
 
 ```text
 LMS/
+├── database.sql    · normalized InnoDB schema, foreign keys, checks, and indexes
+├── presentation_data.sql · optional demo records for archived and active states
 ├── index.html    ~870 lines  · login, 10 views, dashboard, all modals
 ├── styles.css    ~375 lines  · 5 theme variable sets, grids, dashboard UI
 ├── script.js   ~2,000 lines  · state, rules, fines, every workflow
