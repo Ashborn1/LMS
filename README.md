@@ -60,6 +60,9 @@ A second pass focused on the things staff and students actually do every day.
 | ⚙️ **Self-service profile** | Click your name in the header | Everyone can change their name and password |
 | ⬇️ **History CSV export** | History view | Downloads exactly what's on screen, Excel-safe |
 | ♻️ **History for admins** | History view | The Admin now gets the history/archive screen too |
+| 🛡️ **Detailed admin activity logs** | Admin Logs | Records the exact account fields changed, created-account details, archive actions, ticket status changes, and reply text |
+| 👆 **Clickable data grids** | Requests, loans, history, tickets, accounts, books, extensions, and logs | Clicking a row opens the same View, review, or Edit workflow as its action button; nested buttons keep their original action |
+| 💬 **Clear closed-chat message** | Student and guest ticket views | Closed conversations now simply say *This chat is closed.* |
 | 📚 **Catalog paging** | Catalog | 12 books at a time with *Show more (N remaining)* |
 | ✅ **Available-only filter** | Catalog toolbar | Hide anything currently out on loan |
 | 🖼️ **Local book covers** | `covers/` folder | Falls back from the online URL to a bundled image to the emoji icon |
@@ -166,13 +169,27 @@ Users, books, history records, and rejections all carry an `is_archived` flag, a
 ### 🎫 Support Tickets
 - Any signed-in student can open a support ticket; the Admin sees an **Open / Resolved** queue with numbered positions for open chats.
 - Replies are threaded and stored per ticket; the Admin can close and reopen a conversation.
+- Closed conversations show the consistent message **"This chat is closed."** to non-admin users.
 - **Locked-out users are handled too** — the login screen offers a guest account-recovery form and a ticket tracker keyed to the browser via `localStorage`, so someone who can't sign in can still reach a human.
+
+### 🛡️ Admin Activity Logs
+- Admin actions are shown in the Admin Logs view with the administrator, action, detailed change description, and date.
+- Updating an account compares the old and new values and lists each changed field; password values are never written to the log.
+- Account creation records the role and provided account details, while ticket replies record the reply text.
+- Rows are clickable and include a **View** button that opens the full log details.
+
+### 👆 Clickable Data Grids
+- Rows with an existing View, Edit, or review workflow are clickable across the application.
+- Students can open their own request, loan, history, and ticket details.
+- Bookkeepers can open request, loan, extension, history, and book-management details.
+- Admins can open account, ticket, book, and admin-log details according to their existing permissions.
+- Clicking an action button still performs that button's specific action, such as Archive, Return, Approve, Reject, or Cancel.
 
 ### 🎨 UI/UX
 - **5 themes**, switchable live and remembered per browser.
 - Fully responsive: dashboard panels stack, toolbars wrap, tables scroll, and forms reflow to one column on mobile.
 - Philippine-friendly formatting throughout — dates as `en-PH`, currency as `₱`.
-- Real form elements, `hidden` rather than `display:none` for views, focus styles on the dashboard's clickable rows, and a keyboard-submittable login.
+- Real form elements, `hidden` rather than `display:none` for views, focus styles on clickable rows, keyboard activation for clickable grids, and a keyboard-submittable login.
 
 ---
 
@@ -519,14 +536,19 @@ For a live demonstration, run `presentation_data.sql` after the seeded users and
 
 ### `GET php/api.php?action=load`
 
-Returns every row of every table in one payload, normalized for JavaScript:
+Returns every row of every table in one payload, normalized for JavaScript. Admin sessions also receive the `adminLogs` array:
 
 ```json
 {
   "users":  [{ "id": 1, "studentNum": "2024-00123", "is_archived": false }],
   "books":  [{ "id": 1, "title": "…", "copies": 5 }],
   "requests": [], "loans": [], "history": [],
-  "rejections": [], "extension_requests": [], "tickets": []
+  "rejections": [], "extension_requests": [], "tickets": [],
+  "adminLogs": [{
+    "id": 9272, "adminId": 1, "action": "Updated",
+    "details": "Updated Demo Student Two: Section changed; Password: changed.",
+    "createdAt": "2026-11-10 15:37:49"
+  }]
 }
 ```
 
@@ -538,6 +560,7 @@ Normalizations applied server-side:
 | `student_num` | `studentNum` |
 | `extensions`, `replies` | decoded JSON (arrays), not strings |
 | `isWaitlist`, `is_archived` | real booleans |
+| `admin_id`, `entity_id`, `created_at` | `adminId`, `entityId`, `createdAt` in admin log records |
 
 On load the client also drops extension requests whose loan no longer exists, so a stale record can't block anything.
 
