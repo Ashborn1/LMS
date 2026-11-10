@@ -87,3 +87,55 @@ VALUES
     (9261, 9251, 'Admin', 'The overdue loans appear on the dashboard and Active Loans view.', NOW()),
     (9262, 9252, 'Admin', 'Please include your name, contact details, and requested book in the guest form.', NOW()),
     (9263, 9253, 'Bookkeeper', 'Your extension request was received and is being processed.', NOW());
+
+-- Admin activity history demonstrates detailed, auditable changes.
+-- Use the first active Admin from the seeded database so this remains additive.
+SET @presentation_admin_id = (
+    SELECT id
+    FROM users
+    WHERE role = 'Admin' AND is_archived = 0
+    ORDER BY id
+    LIMIT 1
+);
+
+INSERT IGNORE INTO admin_logs
+    (id, admin_id, action, entity_type, entity_id, details, created_at)
+SELECT 9271, @presentation_admin_id, 'Created', 'User', 31,
+       'Created Student account for Demo Student One with username "demo_student_01", student number "DEMO-001", section "BSIT 2-C".',
+       DATE_SUB(NOW(), INTERVAL 6 DAY)
+WHERE @presentation_admin_id IS NOT NULL;
+
+INSERT IGNORE INTO admin_logs
+    (id, admin_id, action, entity_type, entity_id, details, created_at)
+SELECT 9272, @presentation_admin_id, 'Updated', 'User', 32,
+       'Updated Demo Student Two: Section: "BSIT 2-B" → "BSIT 2-C"; Password: changed.',
+       DATE_SUB(NOW(), INTERVAL 5 DAY)
+WHERE @presentation_admin_id IS NOT NULL;
+
+INSERT IGNORE INTO admin_logs
+    (id, admin_id, action, entity_type, entity_id, details, created_at)
+SELECT 9273, @presentation_admin_id, 'Archived', 'User', 36,
+       'Archived account for Archived Demo Student because the account is no longer active.',
+       DATE_SUB(NOW(), INTERVAL 4 DAY)
+WHERE @presentation_admin_id IS NOT NULL;
+
+INSERT IGNORE INTO admin_logs
+    (id, admin_id, action, entity_type, entity_id, details, created_at)
+SELECT 9274, @presentation_admin_id, 'Unarchived', 'User', 36,
+       'Restored account for Archived Demo Student after confirming the student record.',
+       DATE_SUB(NOW(), INTERVAL 3 DAY)
+WHERE @presentation_admin_id IS NOT NULL;
+
+INSERT IGNORE INTO admin_logs
+    (id, admin_id, action, entity_type, entity_id, details, created_at)
+SELECT 9275, @presentation_admin_id, 'Resolved', 'Ticket', 9253,
+       'Resolved ticket "Resolved student ticket" after confirming the approved extension.',
+       DATE_SUB(NOW(), INTERVAL 2 DAY)
+WHERE @presentation_admin_id IS NOT NULL;
+
+INSERT IGNORE INTO admin_logs
+    (id, admin_id, action, entity_type, entity_id, details, created_at)
+SELECT 9276, @presentation_admin_id, 'Replied', 'Ticket', 9251,
+       'Replied to ticket "Admin presentation ticket" with: "The overdue loans appear on the dashboard and Active Loans view.".',
+       DATE_SUB(NOW(), INTERVAL 1 DAY)
+WHERE @presentation_admin_id IS NOT NULL;

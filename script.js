@@ -351,6 +351,7 @@ let requests = [];
 let rejections = [];
 let extensionRequests = [];
 let tickets = [];
+let adminLogs = [];
 
 let currentUser = null;
 let currentTicketView = "ongoing";
@@ -388,6 +389,38 @@ const fineFor = (due, returnedAt = today()) =>
 const money = (n) => "₱" + n.toLocaleString();
 const titleOf = (id, fallback = "Unknown") =>
   (books.find((b) => b.id === id) || {}).title || fallback;
+
+function recordAdminLog(action, entityType, entityId, details) {
+  if (!currentUser || currentUser.role !== "Admin") return;
+  adminLogs.unshift({
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    adminId: currentUser.id,
+    action,
+    entityType,
+    entityId: entityId ?? null,
+    details,
+    createdAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+  });
+}
+
+function describeUserChanges(previous, next) {
+  const fields = [
+    ["name", "Name"],
+    ["username", "Username"],
+    ["role", "Role"],
+    ["studentNum", "Student number"],
+    ["section", "Section"],
+  ];
+  const changes = fields
+    .filter(([key]) => (previous[key] || "") !== (next[key] || ""))
+    .map(
+      ([key, label]) =>
+        `${label}: "${previous[key] || "Blank"}" → "${next[key] || "Blank"}"`,
+    );
+  if ((previous.password || "") !== (next.password || ""))
+    changes.push("Password: changed");
+  return changes;
+}
 
 const dateFmt = (dateStr) => {
   if (!dateStr) return "—";
@@ -478,6 +511,7 @@ async function save() {
     rejections,
     extensionRequests,
     tickets,
+    adminLogs,
   };
   try {
     const response = await fetch("php/api.php?action=sync", {
@@ -524,6 +558,26 @@ $("gcConfirmBtn").onclick = () => {
   confirmationAllowsEnter = true;
 };
 document.addEventListener("keydown", (e) => {
+  const row = e.target.closest?.("[data-row-action]");
+  if (
+    row &&
+    (e.key === "Enter" || e.key === " ") &&
+    !e.target.closest("button, a, input, select, textarea")
+  ) {
+    e.preventDefault();
+    activateRow(row);
+    return;
+  }
+  const logRow = e.target.closest?.("[data-view-log]");
+  if (
+    logRow &&
+    (e.key === "Enter" || e.key === " ") &&
+    !e.target.closest("button")
+  ) {
+    e.preventDefault();
+    openAdminLog(Number(logRow.dataset.viewLog));
+    return;
+  }
   if (e.key === "Escape")
     document.querySelectorAll(".modal").forEach((m) => (m.hidden = true));
   if (
@@ -576,11 +630,17 @@ function refreshUserChip() {
 }
 
 // ---- LOGIN & GUESTS ----
+const hasWhitespace = (value) => /\s/.test(value);
+
 $("loginForm").onsubmit = (e) => {
   e.preventDefault();
   $("loginErr").textContent = "";
   const u = $("user").value;
   const p = $("pass").value;
+  if (hasWhitespace(u) || hasWhitespace(p)) {
+    $("loginErr").textContent = "Username and password cannot contain spaces.";
+    return;
+  }
   const found = users.find(
     (x) => x.username === u && x.password === p && !x.is_archived,
   );
@@ -663,7 +723,7 @@ function renderGuestTickets() {
       let replyInput =
         t.status === "Open"
           ? `<div style="display: flex; gap: 8px; margin-top: 12px;"><input id="greply-${t.id}" placeholder="Type your reply..." style="flex: 1; padding: 8px; font-size: 13px; border-radius: 6px;"><button class="small" onclick="submitGuestReply(${t.id})">Send</button></div>`
-          : `<p style="font-size: 12px; color: var(--muted); margin-top: 8px; font-style: italic;">This ticket is resolved. The Admin must reopen it for you to chat.</p>`;
+          : `<p style="font-size: 12px; color: var(--muted); margin-top: 8px; font-style: italic;">This chat is closed.</p>`;
       return `<div class="guest-ticket-card"><div class="guest-ticket-header"><div><div class="guest-ticket-title">${esc(t.subject)}</div><div class="guest-ticket-date">Submitted on ${esc(dateFmt(tTime))}</div></div><span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: ${t.status === "Open" ? "color-mix(in srgb, #f59e0b 15%, transparent)" : "color-mix(in srgb, #10b981 15%, transparent)"}; color: ${t.status === "Open" ? "#b45309" : "#047857"};">${t.status}</span></div><div class="guest-ticket-desc">"${esc(t.desc)}"</div>${repliesHtml}${replyInput}</div>`;
     })
     .join("");
@@ -698,6 +758,8 @@ function showApp() {
   $("navDashboard").hidden = !isBookkeeper;
   $("navUsers").hidden = !isAdmin;
   $("navTickets").hidden = isBookkeeper;
+  $("navHistory").textContent = isAdmin ? "🛡️ Admin Logs" : "🕘 History";
+  $("historyTitle").textContent = isAdmin ? "Admin Activity Logs" : "History";
   $("btnNewTicket").style.display = isAdmin ? "none" : "block";
   $("ticketTabs").style.display = isAdmin ? "flex" : "none";
   $("thQueue").style.display = isAdmin ? "table-cell" : "none";
@@ -732,7 +794,10 @@ function switchView(viewName) {
   if (viewName === "my-requests") renderMyRequests();
   if (viewName === "requests") renderRequests();
   if (viewName === "loans") renderLoans();
-  if (viewName === "history") renderHistory();
+  if (viewName === "history") {
+    if (currentUser.role === "Admin") renderAdminLogs();
+    else renderHistory();
+  }
   if (viewName === "books") renderManageBooks();
   if (viewName === "users") renderManageUsers();
   if (viewName === "tickets") renderTickets();
@@ -974,12 +1039,55 @@ $("globalSearch").oninput = function () {
 document.addEventListener(
   "click",
   (e) => {
+    const row = e.target.closest("[data-row-action]");
+    if (row && !e.target.closest("button, a, input, select, textarea")) {
+      activateRow(row);
+      return;
+    }
+    const logRow = e.target.closest("[data-view-log]");
+    if (logRow && !e.target.closest("button")) {
+      openAdminLog(Number(logRow.dataset.viewLog));
+      return;
+    }
     if (!e.target.closest(".global-search-wrapper")) {
       $("globalSearchResults").classList.remove("active");
     }
   },
   false,
 );
+
+function activateRow(row) {
+  const id = Number(row.dataset.rowId);
+  switch (row.dataset.rowAction) {
+    case "book":
+      openBookForm(id);
+      break;
+    case "user":
+      openUserForm(id);
+      break;
+    case "ticket":
+      viewTicket(id);
+      break;
+    case "request":
+      openViewRequest(id);
+      break;
+    case "loan":
+      viewLoanDetails(id, false);
+      break;
+    case "history-loan":
+      viewLoanDetails(id, true);
+      break;
+    case "history-rejection":
+      viewRejection(id);
+      break;
+    case "extension":
+      openExtApprove(id);
+      break;
+    case "admin-log":
+      openAdminLog(id);
+      break;
+  }
+}
 
 // ---- CATALOG ----
 let catalogLimit = CATALOG_PAGE;
@@ -1216,7 +1324,7 @@ function renderMyRequests() {
       const status = r.isWaitlist
         ? `Waitlisted · #${waitlistPosition(r)} in line`
         : "Pending Approval";
-      return `<tr><td><strong>${esc(titleOf(r.bookId, "Deleted Book"))}</strong> ${badge}</td><td>${esc(dateFmt(r.dateRequested))}</td><td><span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, #f59e0b 15%, transparent); color: #b45309;">${status}</span></td><td><div class="actions-cell"><button class="ghost danger small" onclick="cancelRequest(${r.id})">Cancel Request</button></div></td></tr>`;
+      return `<tr data-row-action="request" data-row-id="${r.id}" tabindex="0" title="Click to view request"><td><strong>${esc(titleOf(r.bookId, "Deleted Book"))}</strong> ${badge}</td><td>${esc(dateFmt(r.dateRequested))}</td><td><span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: color-mix(in srgb, #f59e0b 15%, transparent); color: #b45309;">${status}</span></td><td><div class="actions-cell"><button class="ghost danger small" onclick="cancelRequest(${r.id})">Cancel Request</button></div></td></tr>`;
     })
     .join("");
 }
@@ -1249,7 +1357,7 @@ function renderRequests() {
       const waitlistBadge = r.isWaitlist
         ? `<span style="display:inline-block; margin-left: 8px; background:#f59e0b; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; letter-spacing:0.5px;">WAITLIST</span>`
         : "";
-      return `<tr><td><strong>${esc(titleOf(r.bookId, "Deleted Book"))}</strong></td><td>${esc(r.studentName)} ${waitlistBadge}</td><td>${esc(dateFmt(r.dateRequested))}</td><td><div class="actions-cell"><button class="ghost small" onclick="openViewRequest(${r.id})">View</button></div></td></tr>`;
+      return `<tr data-row-action="request" data-row-id="${r.id}" tabindex="0" title="Click to view request"><td><strong>${esc(titleOf(r.bookId, "Deleted Book"))}</strong></td><td>${esc(r.studentName)} ${waitlistBadge}</td><td>${esc(dateFmt(r.dateRequested))}</td><td><div class="actions-cell"><button class="ghost small" onclick="openViewRequest(${r.id})">View</button></div></td></tr>`;
     })
     .join("");
   renderExtensionRequests();
@@ -1372,7 +1480,7 @@ function renderLoans() {
         actions += `<button class="ghost small" style="color:var(--primary); border-color:color-mix(in srgb, var(--primary) 40%, var(--border));" onclick="openExtendLoan(${l.id})">Extend</button>`;
         actions += `<button class="small" onclick="returnBook(${l.id})">Return</button>`;
       }
-      return `<tr><td><strong>${esc(titleOf(l.bookId))}</strong></td><td>${esc(l.borrower)}</td><td>${esc(dateFmt(l.due))} ${dueBadge(l.due)}</td><td><div class="actions-cell">${actions}</div></td></tr>`;
+      return `<tr data-row-action="loan" data-row-id="${l.id}" tabindex="0" title="Click to view loan"><td><strong>${esc(titleOf(l.bookId))}</strong></td><td>${esc(l.borrower)}</td><td>${esc(dateFmt(l.due))} ${dueBadge(l.due)}</td><td><div class="actions-cell">${actions}</div></td></tr>`;
     })
     .join("");
 }
@@ -1491,7 +1599,7 @@ function renderExtensionRequests() {
     $("requestsBody").innerHTML += extensionRequests
       .map(
         (ext) =>
-          `<tr style="background: color-mix(in srgb, #ef4444 5%, transparent);"><td><strong>[EXTENSION] ${esc(ext.bookName)}</strong></td><td>${esc(ext.studentName)}</td><td>Reason: ${esc(ext.reason)}</td><td><div class="actions-cell"><button class="small" onclick="openExtApprove(${ext.id})">Approve Ext</button><button class="ghost danger small" onclick="rejectExtension(${ext.id})">Reject</button></div></td></tr>`,
+          `<tr data-row-action="extension" data-row-id="${ext.id}" tabindex="0" title="Click to review extension" style="background: color-mix(in srgb, #ef4444 5%, transparent);"><td><strong>[EXTENSION] ${esc(ext.bookName)}</strong></td><td>${esc(ext.studentName)}</td><td>Reason: ${esc(ext.reason)}</td><td><div class="actions-cell"><button class="small" onclick="openExtApprove(${ext.id})">Approve Ext</button><button class="ghost danger small" onclick="rejectExtension(${ext.id})">Reject</button></div></td></tr>`,
       )
       .join("");
   }
@@ -1629,6 +1737,7 @@ const historyNote = (i) =>
 function renderHistory() {
   const isStudent = currentUser.role === "Student",
     items = historyItems();
+  $("btnExportHistory").hidden = false;
   $("btnViewArchivedHistory").hidden = isStudent;
   $("btnViewArchivedHistory").textContent = viewArchivedHistory
     ? "Show Active"
@@ -1644,7 +1753,7 @@ function renderHistory() {
     $("historyBody").innerHTML = items
       .map(
         (i) =>
-          `<tr><td><strong>${esc(i.title)}</strong></td><td>${historyStatus(i)}</td><td>${esc(dateFmt(i.date))}</td><td>${historyFine(i)}</td><td>${historyNote(i)}</td></tr>`,
+          `<tr data-row-action="history-${i.kind}" data-row-id="${i.id}" tabindex="0" title="Click to view record"><td><strong>${esc(i.title)}</strong></td><td>${historyStatus(i)}</td><td>${esc(dateFmt(i.date))}</td><td>${historyFine(i)}</td><td>${historyNote(i)}</td></tr>`,
       )
       .join("");
     return;
@@ -1660,9 +1769,40 @@ function renderHistory() {
       const archive = i.kind === "loan" ? "archiveHistory" : "archiveRejection",
         unarchive =
           i.kind === "loan" ? "unarchiveHistory" : "unarchiveRejection";
-      return `<tr><td><strong>${esc(i.title)}</strong></td><td>${esc(i.person)}</td><td>${historyStatus(i)}</td><td>${esc(dateFmt(i.date))}</td><td>${historyFine(i)}</td><td><div class="actions-cell"><button class="ghost small" onclick="${view}">View</button>${viewArchivedHistory ? `<button class="ghost small" onclick="${unarchive}(${i.id})">Unarchive</button>` : `<button class="ghost danger small" onclick="${archive}(${i.id})">Archive</button>`}</div></td></tr>`;
+      return `<tr data-row-action="history-${i.kind}" data-row-id="${i.id}" tabindex="0" title="Click to view record"><td><strong>${esc(i.title)}</strong></td><td>${esc(i.person)}</td><td>${historyStatus(i)}</td><td>${esc(dateFmt(i.date))}</td><td>${historyFine(i)}</td><td><div class="actions-cell"><button class="ghost small" onclick="${view}">View</button>${viewArchivedHistory ? `<button class="ghost small" onclick="${unarchive}(${i.id})">Unarchive</button>` : `<button class="ghost danger small" onclick="${archive}(${i.id})">Archive</button>`}</div></td></tr>`;
     })
     .join("");
+}
+
+function renderAdminLogs() {
+  $("btnExportHistory").hidden = true;
+  $("btnViewArchivedHistory").hidden = true;
+  $("historyHead").innerHTML =
+    "<tr><th>Administrator</th><th>Action</th><th>Details</th><th>Date</th><th></th></tr>";
+  if (adminLogs.length === 0) {
+    $("historyBody").innerHTML =
+      '<tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">🛡️</div><h3>No admin activity yet</h3><p>Administrative changes will appear here.</p></div></td></tr>';
+    return;
+  }
+  $("historyBody").innerHTML = adminLogs
+    .map((log) => {
+      const admin = users.find((user) => user.id === log.adminId);
+      return `<tr data-row-action="admin-log" data-row-id="${log.id}" data-view-log="${log.id}" tabindex="0" title="Click to view log details"><td>${esc(admin ? admin.name : "Administrator")}</td><td><strong>${esc(log.action)}</strong></td><td>${esc(log.details)}</td><td>${esc(dateFmt(log.createdAt))}</td><td><button class="ghost small" onclick="event.stopPropagation(); openAdminLog(${log.id})">View</button></td></tr>`;
+    })
+    .join("");
+}
+
+function openAdminLog(id) {
+  const log = adminLogs.find((item) => item.id === id);
+  if (!log) return;
+  const admin = users.find((user) => user.id === log.adminId);
+  $("alAdmin").textContent = admin ? admin.name : "Administrator";
+  $("alAction").textContent = log.action || "—";
+  $("alDetails").textContent = log.details || "No additional details recorded.";
+  $("alDate").textContent = log.createdAt
+    ? new Date(log.createdAt).toLocaleString()
+    : "—";
+  $("adminLogModal").hidden = false;
 }
 
 function toggleViewArchivedHistory() {
@@ -1798,7 +1938,7 @@ function renderManageBooks() {
   $("manageBooksBody").innerHTML = filtered
     .map(
       (b) =>
-        `<tr><td><strong>${esc(b.title)}</strong></td><td>${esc(b.cat)}</td><td>${b.copies}</td><td><div class="actions-cell"><button class="ghost small" onclick="openBookForm(${b.id})">Edit</button>${viewArchivedBooks ? `<button class="ghost small" onclick="unarchiveBook(${b.id})">Unarchive</button>` : `<button class="ghost danger small" onclick="archiveBook(${b.id})">Archive</button>`}</div></td></tr>`,
+        `<tr data-row-action="book" data-row-id="${b.id}" tabindex="0" title="Click to edit book"><td><strong>${esc(b.title)}</strong></td><td>${esc(b.cat)}</td><td>${b.copies}</td><td><div class="actions-cell"><button class="ghost small" onclick="openBookForm(${b.id})">Edit</button>${viewArchivedBooks ? `<button class="ghost small" onclick="unarchiveBook(${b.id})">Unarchive</button>` : `<button class="ghost danger small" onclick="archiveBook(${b.id})">Archive</button>`}</div></td></tr>`,
     )
     .join("");
 }
@@ -2005,7 +2145,7 @@ function renderManageUsers() {
   $("manageUsersBody").innerHTML = filtered
     .map(
       (u) =>
-        `<tr><td><strong>${esc(u.name)}</strong></td><td>${esc(u.username)}</td><td><span class="cat" style="background:color-mix(in srgb, var(--primary) 15%, transparent); color:var(--primary);">${esc(u.role)}</span></td><td><div class="actions-cell"><button class="ghost small" onclick="openUserForm(${u.id})">Edit</button>${u.id !== currentUser.id ? (viewArchivedUsers ? `<button class="ghost small" onclick="unarchiveUser(${u.id})">Unarchive</button>` : `<button class="ghost danger small" onclick="archiveUser(${u.id})">Archive</button>`) : ""}</div></td></tr>`,
+        `<tr data-row-action="user" data-row-id="${u.id}" tabindex="0" title="Click to edit account"><td><strong>${esc(u.name)}</strong></td><td>${esc(u.username)}</td><td><span class="cat" style="background:color-mix(in srgb, var(--primary) 15%, transparent); color:var(--primary);">${esc(u.role)}</span></td><td><div class="actions-cell"><button class="ghost small" onclick="openUserForm(${u.id})">Edit</button>${u.id !== currentUser.id ? (viewArchivedUsers ? `<button class="ghost small" onclick="unarchiveUser(${u.id})">Unarchive</button>` : `<button class="ghost danger small" onclick="archiveUser(${u.id})">Archive</button>`) : ""}</div></td></tr>`,
     )
     .join("");
 }
@@ -2088,17 +2228,37 @@ function saveUser() {
     showConfirm("Missing Fields", "All fields are required.", "Okay", () => {});
     return;
   }
+  if (hasWhitespace(username) || hasWhitespace(password)) {
+    showConfirm(
+      "Invalid Credentials",
+      "Username and password cannot contain spaces.",
+      "Okay",
+      () => {},
+    );
+    return;
+  }
   if (id) {
     const u = users.find((x) => x.id == id);
+    const previous = { ...u };
     u.name = name;
     u.username = username;
     u.password = password;
     u.role = role;
     u.studentNum = studentNum;
     u.section = section;
+    const changes = describeUserChanges(previous, u);
+    recordAdminLog(
+      "Updated",
+      "User",
+      u.id,
+      changes.length
+        ? `Updated ${u.name}: ${changes.join("; ")}.`
+        : `Opened and saved ${u.name}'s account with no field changes.`,
+    );
   } else {
+    const newUserId = Date.now();
     users.push({
-      id: Date.now(),
+      id: newUserId,
       name,
       username,
       password,
@@ -2107,6 +2267,12 @@ function saveUser() {
       section,
       is_archived: false,
     });
+    recordAdminLog(
+      "Created",
+      "User",
+      newUserId,
+      `Created ${role} account for ${name} with username "${username}"${studentNum ? `, student number "${studentNum}"` : ""}${section ? `, section "${section}"` : ""}.`,
+    );
   }
   save();
   $("userFormModal").hidden = true;
@@ -2121,6 +2287,7 @@ function archiveUser(id) {
     () => {
       const u = users.find((x) => x.id === id);
       if (u) u.is_archived = true;
+      if (u) recordAdminLog("Archived", "User", u.id, `Archived account for ${u.name}.`);
       save();
       renderManageUsers();
     },
@@ -2129,7 +2296,10 @@ function archiveUser(id) {
 }
 function unarchiveUser(id) {
   const u = users.find((x) => x.id === id);
-  if (u) u.is_archived = false;
+  if (u) {
+    u.is_archived = false;
+    recordAdminLog("Unarchived", "User", u.id, `Restored account for ${u.name}.`);
+  }
   save();
   renderManageUsers();
 }
@@ -2180,7 +2350,7 @@ function renderTickets() {
           : `<td>—</td>`
         : "";
       const tTime = t.time || t.date;
-      return `<tr>${queueNumHtml}<td style="font-size: 12px; color: var(--muted);">${esc(dateFmt(tTime))}</td><td><strong>${esc(t.subject)}</strong></td><td>${esc(t.userName)}</td><td><span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === "Open" ? "color-mix(in srgb, #f59e0b 15%, transparent)" : "color-mix(in srgb, #10b981 15%, transparent)"}; color: ${t.status === "Open" ? "#b45309" : "#047857"};">${t.status}</span></td><td><div class="actions-cell">${!isStudent ? `<button class="ghost small" onclick="toggleTicketStatus(${t.id})">${t.status === "Open" ? "Close Chat" : "Reopen Chat"}</button>` : ""}<button class="ghost small" onclick="viewTicket(${t.id})">View / Reply</button></div></td></tr>`;
+      return `<tr data-row-action="ticket" data-row-id="${t.id}" tabindex="0" title="Click to view ticket">${queueNumHtml}<td style="font-size: 12px; color: var(--muted);">${esc(dateFmt(tTime))}</td><td><strong>${esc(t.subject)}</strong></td><td>${esc(t.userName)}</td><td><span style="padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; background: ${t.status === "Open" ? "color-mix(in srgb, #f59e0b 15%, transparent)" : "color-mix(in srgb, #10b981 15%, transparent)"}; color: ${t.status === "Open" ? "#b45309" : "#047857"};">${t.status}</span></td><td><div class="actions-cell">${!isStudent ? `<button class="ghost small" onclick="toggleTicketStatus(${t.id})">${t.status === "Open" ? "Close Chat" : "Reopen Chat"}</button>` : ""}<button class="ghost small" onclick="viewTicket(${t.id})">View / Reply</button></div></td></tr>`;
     })
     .join("");
 }
@@ -2190,6 +2360,12 @@ function toggleTicketStatus(id) {
   const t = tickets.find((x) => x.id === id);
   if (!t) return;
   t.status = t.status === "Open" ? "Resolved" : "Open";
+  recordAdminLog(
+    t.status === "Resolved" ? "Resolved" : "Reopened",
+    "Ticket",
+    t.id,
+    `${t.status === "Resolved" ? "Resolved" : "Reopened"} ticket: ${t.subject}.`,
+  );
   if (t.status === "Open") t.time = new Date().toLocaleString();
   save();
   renderTickets();
@@ -2266,6 +2442,14 @@ function submitReply() {
     text,
     date: new Date().toLocaleString(),
   });
+  if (currentUser.role === "Admin") {
+    recordAdminLog(
+      "Replied",
+      "Ticket",
+      t.id,
+      `Replied to ticket "${t.subject}" with: "${text}".`,
+    );
+  }
   save();
   viewTicket(currentTicketId);
   renderTickets();
@@ -2468,12 +2652,24 @@ function saveProfile() {
     return;
   }
   if (next || confirm || current) {
+    if (
+      hasWhitespace(current) ||
+      hasWhitespace(next) ||
+      hasWhitespace(confirm)
+    ) {
+      $("pfErr").textContent = "Passwords cannot contain spaces.";
+      return;
+    }
     if (current !== currentUser.password) {
       $("pfErr").textContent = "Current password is incorrect.";
       return;
     }
     if (next.length < 4) {
       $("pfErr").textContent = "New password must be at least 4 characters.";
+      return;
+    }
+    if (hasWhitespace(next)) {
+      $("pfErr").textContent = "New password cannot contain spaces.";
       return;
     }
     if (next !== confirm) {
@@ -2519,6 +2715,7 @@ async function initApp() {
     rejections = data.rejections || [];
     extensionRequests = data.extension_requests || [];
     tickets = data.tickets || [];
+    adminLogs = data.adminLogs || [];
     extensionRequests = extensionRequests.filter((r) =>
       loans.some((l) => l.id === r.loanId),
     );
